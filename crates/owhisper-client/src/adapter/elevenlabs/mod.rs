@@ -56,8 +56,10 @@ impl ElevenLabsAdapter {
                     .take(5)
                     .collect::<Vec<_>>()
                     .join(" ");
-                let term: String =
-                    term.chars().filter(|c| !matches!(c, '<' | '>' | '{' | '}' | '[' | ']' | '\\')).collect();
+                let term: String = term
+                    .chars()
+                    .filter(|c| !matches!(c, '<' | '>' | '{' | '}' | '[' | ']' | '\\'))
+                    .collect();
                 let term = term.trim();
                 if term.is_empty()
                     || term.chars().count() > max_chars

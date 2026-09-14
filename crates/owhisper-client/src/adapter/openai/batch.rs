@@ -677,9 +677,11 @@ mod tests {
         let fields = options
             .multipart_text_fields()
             .expect("serialize multipart");
-        assert!(fields.iter().any(
-            |field| field.name == "prompt" && field.value == "Ada, Juan Pérez"
-        ));
+        assert!(
+            fields
+                .iter()
+                .any(|field| field.name == "prompt" && field.value == "Ada, Juan Pérez")
+        );
     }
 
     #[test]
