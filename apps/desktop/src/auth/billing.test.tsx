@@ -98,6 +98,17 @@ vi.mock("~/shared/billing", () => ({
     refreshSession(),
 }));
 
+// Personal fork: exercise the upstream billing paths with the local-Pro
+// override off. Fork-on behavior is covered in billing-personal.test.tsx.
+vi.mock("~/shared/personal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/shared/personal")>();
+  return {
+    ...actual,
+    PERSONAL_LOCAL_PRO: false,
+    PERSONAL_HIDE_TEAMS: false,
+  };
+});
+
 vi.mock("../billing/trial-ended-dialog", () => ({
   TrialEndedDialog: ({ open }: { open: boolean }) => (
     <div data-open={open ? "true" : "false"} data-testid="trial-ended-dialog" />

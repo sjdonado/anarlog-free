@@ -47,6 +47,10 @@ impl RealtimeSttAdapter for ElevenLabsAdapter {
             if let Some(lang) = params.languages.first() {
                 query_pairs.append_pair("language_code", lang.iso639().code());
             }
+
+            for keyterm in Self::keyterms(params, 20) {
+                query_pairs.append_pair("keyterms", &keyterm);
+            }
         }
 
         url
@@ -269,6 +273,33 @@ mod tests {
                 ],
                 not_contains: &[],
             }],
+        );
+    }
+
+    #[test]
+    fn test_keyterms_query_params() {
+        use crate::adapter::RealtimeSttAdapter;
+
+        let url = ElevenLabsAdapter::default().build_ws_url(
+            API_BASE,
+            &owhisper_interface::ListenParams {
+                keywords: vec!["Ada".to_string(), "Juan Pérez".to_string()],
+                ..Default::default()
+            },
+            1,
+        );
+        // Repeated `keyterms` params, per the Scribe realtime API; decoded
+        // round-trip proves the encoding survives non-ASCII names.
+        let pairs: Vec<(String, String)> = url.query_pairs().into_owned().collect();
+        assert!(
+            pairs.contains(&("keyterms".to_string(), "Ada".to_string())),
+            "pairs: {:?}",
+            pairs
+        );
+        assert!(
+            pairs.contains(&("keyterms".to_string(), "Juan Pérez".to_string())),
+            "pairs: {:?}",
+            pairs
         );
     }
 

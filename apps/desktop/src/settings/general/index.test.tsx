@@ -66,6 +66,9 @@ vi.mock("./storage", () => ({ StorageSettingsView: () => null }));
 vi.mock("./summary-length", () => ({
   SummaryLengthSelector: () => <span>Summary length selector</span>,
 }));
+vi.mock("./auto-enhance", () => ({
+  AutoEnhanceToggle: () => <span>Auto-enhance toggle</span>,
+}));
 vi.mock("./timezone", () => ({ TimezoneSelector: () => null }));
 vi.mock("./week-start", () => ({ WeekStartSelector: () => null }));
 

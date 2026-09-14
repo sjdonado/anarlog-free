@@ -244,6 +244,11 @@ export const SETTING_DEFINITIONS = {
     path: ["ai", "auto_summary_prompt"],
     default: "" as string,
   },
+  auto_enhance_after_transcript: {
+    type: "boolean",
+    path: ["ai", "auto_enhance_after_transcript"],
+    default: true as boolean,
+  },
   summary_length: {
     type: "string",
     path: ["ai", "summary_length"],

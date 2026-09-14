@@ -7,6 +7,7 @@ import {
   type SettingKey,
   type SettingValue,
 } from "~/settings/schema";
+import { PERSONAL_UPDATER_DISABLED } from "~/shared/personal";
 
 type JsonParsedKeys =
   | "spoken_languages"
@@ -63,6 +64,12 @@ export function resolveConfigValue<K extends SettingKey>(
     !hasValues.has("audio_retention")
   ) {
     return "none" as ConfigValueType<K>;
+  }
+
+  // Personal fork: local builds only, automatic updates stay off even when
+  // an older profile has the setting stored as true.
+  if (key === "automatic_updates" && PERSONAL_UPDATER_DISABLED) {
+    return false as ConfigValueType<K>;
   }
 
   if (key === "notification_bounce" && !hasValues.has(key)) {

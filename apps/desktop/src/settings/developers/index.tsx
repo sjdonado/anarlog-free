@@ -9,6 +9,7 @@ import { CloudApiSection } from "./cloud-api";
 import { WebhooksSection } from "./webhooks";
 
 import { SettingsPageTitle } from "~/settings/page-title";
+import { PERSONAL_HIDE_CLOUD_API } from "~/shared/personal";
 
 export { buildMcpConfiguration, getCliInstallNotification } from "./cli";
 
@@ -32,7 +33,7 @@ export function SettingsDevelopers() {
         </Button>
       </div>
       <CliSettingsSections />
-      <CloudApiSection />
+      {!PERSONAL_HIDE_CLOUD_API && <CloudApiSection />}
       <WebhooksSection />
     </div>
   );

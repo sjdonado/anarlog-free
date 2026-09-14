@@ -36,6 +36,7 @@ type EnhanceResult =
 
 type QueueEmptySummaryResult =
   | { type: "queued" }
+  | { type: "skipped" }
   | { type: "summary_exists"; noteId: string };
 
 export type AutoEnhanceMode = "regenerate" | "if_empty";
@@ -65,6 +66,7 @@ type EnhancerDeps = {
   getModel: () => LanguageModel | null;
   getLLMConn: () => { providerId?: string; modelId?: string } | null;
   getSelectedTemplateId: () => string | undefined;
+  isAutoEnhanceEnabled?: () => boolean;
 };
 
 const UUID_TITLE_RE =
@@ -189,9 +191,16 @@ export class EnhancerService {
     this.runAutoEnhance(sessionId, 0);
   }
 
+  private isAutoEnhanceAllowed(): boolean {
+    return this.deps.isAutoEnhanceEnabled?.() !== false;
+  }
+
   async queueAutoEnhanceIfSummaryEmpty(
     sessionId: string,
   ): Promise<QueueEmptySummaryResult> {
+    if (!this.isAutoEnhanceAllowed()) {
+      return { type: "skipped" };
+    }
     return retryDatabaseLock(async () => {
       const snapshot = await this.loadSession(sessionId);
       const templateId = resolveTemplateId(
@@ -228,6 +237,9 @@ export class EnhancerService {
   }
 
   async requestAutoEnhance(sessionId: string, mode: AutoEnhanceMode) {
+    if (!this.isAutoEnhanceAllowed()) {
+      return;
+    }
     if (mode === "regenerate") {
       const pendingAutoEnhance = await retryDatabaseLock(async () => {
         const snapshot = await this.loadSession(sessionId);
@@ -275,6 +287,8 @@ export class EnhancerService {
   }
 
   private async resumePendingAutoEnhance() {
+    // Stranded jobs from before the toggle was flipped stay stranded.
+    if (!this.isAutoEnhanceAllowed()) return;
     try {
       const jobs = await retryDatabaseLock(loadPendingAutoEnhanceJobs);
       if (!this.started) return;

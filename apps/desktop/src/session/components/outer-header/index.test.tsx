@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
   }>,
   windowControlsGutter: true,
   meetingMicInUse: false,
+  participants: [{ id: "participant-1" }] as Array<{ id: string }>,
 }));
 
 vi.mock("../title-input", () => ({
@@ -51,7 +52,16 @@ vi.mock("~/session/queries", () => ({
   useSession: () => ({ folder_id: "" }),
   useFolderIcons: () => ({}),
   useFolderPaths: () => [],
+  useSessionParticipants: () => mocks.participants,
   useUpdateSession: () => vi.fn(),
+}));
+
+vi.mock("~/contacts/queries", () => ({
+  createHuman: vi.fn(async () => "human-1"),
+}));
+
+vi.mock("~/session/queries/participants", () => ({
+  addSessionParticipant: vi.fn(async () => undefined),
 }));
 
 vi.mock("./overflow", () => ({
@@ -194,6 +204,8 @@ describe("OuterHeader", () => {
     mocks.overflowProps = [];
     mocks.windowControlsGutter = true;
     mocks.meetingMicInUse = false;
+    mocks.participants = [{ id: "participant-1" }];
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -790,6 +802,72 @@ describe("OuterHeader", () => {
     expect(mocks.startListening).toHaveBeenCalledTimes(1);
   });
 
+  it("holds the meeting URL until speaker names are confirmed", () => {
+    mocks.participants = [];
+    mocks.sessionEvents = {
+      "session-2": {
+        title: "Design Review",
+        started_at: "2026-06-05T10:00:00.000Z",
+        ended_at: "2026-06-05T10:30:00.000Z",
+        meeting_link: "https://meet.google.com/abc-defg-hij",
+      },
+    };
+    mocks.nowMs = new Date("2026-06-05T09:55:00.000Z").getTime();
+
+    render(
+      <OuterHeader
+        sessionId="session-2"
+        currentView={{ type: "raw" } as EditorView}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Join & record" }));
+
+    expect(mocks.openUrl).not.toHaveBeenCalled();
+    expect(mocks.startListening).not.toHaveBeenCalled();
+    expect(screen.getByText("Who's in this meeting?")).not.toBeNull();
+  });
+
+  it("opens the meeting URL once after speaker names are confirmed", async () => {
+    mocks.participants = [];
+    mocks.sessionEvents = {
+      "session-2": {
+        title: "Design Review",
+        started_at: "2026-06-05T10:00:00.000Z",
+        ended_at: "2026-06-05T10:30:00.000Z",
+        meeting_link: "https://meet.google.com/abc-defg-hij",
+      },
+    };
+    mocks.nowMs = new Date("2026-06-05T09:55:00.000Z").getTime();
+
+    render(
+      <OuterHeader
+        sessionId="session-2"
+        currentView={{ type: "raw" } as EditorView}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Join & record" }));
+    expect(screen.getByText("Who's in this meeting?")).not.toBeNull();
+
+    // Names entered: no skip flag is stored, so a re-checked prompt with the
+    // still-stale participant list would reopen the dialog (regression).
+    const [nameInput] = screen.getAllByPlaceholderText(/Person \d/);
+    fireEvent.change(nameInput!, { target: { value: "Ada" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start recording" }));
+
+    await vi.waitFor(() => {
+      expect(mocks.openUrl).toHaveBeenCalledWith(
+        "https://meet.google.com/abc-defg-hij",
+        null,
+      );
+    });
+    expect(mocks.openUrl).toHaveBeenCalledTimes(1);
+    expect(mocks.startListening).toHaveBeenCalledTimes(1);
+    // Confirmed join proceeds directly: the dialog must not reopen.
+    expect(screen.queryByText("Who's in this meeting?")).toBeNull();
+  });
+
   it("keeps join-and-record when the mic is in use before the meeting starts", () => {
     mocks.sessionEvents = {
       "session-1": {
@@ -1238,6 +1316,22 @@ describe("OuterHeader", () => {
     expect(mocks.startListening).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Share note" })).toBeNull();
     expect(screen.getByRole("button", { name: "More" })).not.toBeNull();
+  });
+
+  it("asks for speaker names before recording a session without participants", () => {
+    mocks.participants = [];
+
+    render(
+      <OuterHeader
+        sessionId="session-1"
+        currentView={{ type: "raw" } as EditorView}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
+
+    expect(mocks.startListening).not.toHaveBeenCalled();
+    expect(screen.getByText("Who's in this meeting?")).not.toBeNull();
   });
 
   it("shows share instead of record for an inactive ad hoc session with a transcript", () => {

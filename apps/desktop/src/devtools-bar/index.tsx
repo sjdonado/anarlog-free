@@ -40,6 +40,7 @@ import {
 import { useAuth } from "~/auth";
 import { useBillingAccess } from "~/auth/billing-context";
 import { useMountEffect } from "~/shared/hooks/useMountEffect";
+import { PERSONAL_HIDE_DEVTOOLS_BAR } from "~/shared/personal";
 import { commands } from "~/types/tauri.gen";
 
 export type BuildChannel = "dev" | "staging" | "nightly" | "stable";
@@ -96,6 +97,12 @@ export function DevtoolsStatusBar(props: Record<never, never>) {
     queryFn: commands.showDevtool,
     staleTime: Infinity,
   });
+
+  // Personal fork: stats bar hidden by default. The flag check stays after
+  // the hooks so hook order never varies between renders.
+  if (PERSONAL_HIDE_DEVTOOLS_BAR) {
+    return null;
+  }
 
   if (enabledQuery.data !== true) {
     return null;

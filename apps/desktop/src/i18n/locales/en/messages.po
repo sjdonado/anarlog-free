@@ -392,6 +392,10 @@ msgstr "Add meeting decisions and follow-ups to a Notion project."
 msgid "Add members"
 msgstr "Add members"
 
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
+msgid "Add names so speakers get labeled correctly in the transcript."
+msgstr "Add names so speakers get labeled correctly in the transcript."
+
 #: src/settings/dictionary/index.tsx
 msgid "Add names, jargon, or product terms to prefer"
 msgstr "Add names, jargon, or product terms to prefer"
@@ -410,6 +414,7 @@ msgid "Add payment method"
 msgstr "Add payment method"
 
 #: src/contacts/new-person-form.tsx
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
 msgid "Add person"
 msgstr "Add person"
 
@@ -751,6 +756,10 @@ msgstr "Authorize access in your browser, then return to Anarlog."
 #: src/templates/auto-form.tsx
 msgid "Auto summary format"
 msgstr "Auto summary format"
+
+#: src/settings/general/auto-enhance.tsx
+msgid "Auto-generate summary"
+msgstr "Auto-generate summary"
 
 #: src/settings/automations/index.tsx
 msgid "Automate what happens before, during, or after meetings based on the conditions you choose."
@@ -1155,6 +1164,10 @@ msgstr "Choose how much detail generated meeting summaries include."
 #: src/settings/general/storage/index.tsx
 msgid "Choose storage location"
 msgstr "Choose storage location"
+
+#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
+msgid "Choose template"
+msgstr "Choose template"
 
 #: src/templates/template-icon-picker.tsx
 msgid "Choose template icon"
@@ -2450,6 +2463,10 @@ msgstr "General"
 msgid "General access"
 msgstr "General access"
 
+#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
+msgid "Generate summary"
+msgstr "Generate summary"
+
 #: src/session/components/note-input/enhanced/streaming.tsx
 #: src/session/components/title-input.tsx
 msgid "Generating title..."
@@ -3505,6 +3522,10 @@ msgstr "No single busiest day"
 #: src/chat/components/input/use-dictation.ts
 msgid "No speech detected"
 msgstr "No speech detected"
+
+#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
+msgid "No summary yet. Generate one from the transcript whenever you're ready, optionally with a different template."
+msgstr "No summary yet. Generate one from the transcript whenever you're ready, optionally with a different template."
 
 #: src/settings/sync/index.tsx
 msgid "No sync activity yet."
@@ -4971,6 +4992,7 @@ msgid "Skill installed"
 msgstr "Skill installed"
 
 #: src/onboarding/shared.tsx
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
 msgid "Skip"
 msgstr "Skip"
 
@@ -5055,6 +5077,10 @@ msgstr "Start fresh on this device?"
 #: src/settings/general/meeting-settings.tsx
 msgid "Start listening when a scheduled meeting begins."
 msgstr "Start listening when a scheduled meeting begins."
+
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
+msgid "Start recording"
+msgstr "Start recording"
 
 #: src/main/empty.tsx
 msgid "Start Recording"
@@ -5935,6 +5961,10 @@ msgstr "What were the key decisions that have been made?"
 msgid "What's new in {version}?"
 msgstr "What's new in {version}?"
 
+#: src/settings/general/auto-enhance.tsx
+msgid "When off, transcripts stay as-is until you generate the summary manually."
+msgstr "When off, transcripts stay as-is until you generate the summary manually."
+
 #: src/settings/automations/workflow-builder.tsx
 msgid "When this happens"
 msgstr "When this happens"
@@ -5947,6 +5977,10 @@ msgstr "Where your notes and recordings are stored"
 #: src/settings/ai/stt/local-file-model.tsx
 msgid "whisper.cpp models"
 msgstr "whisper.cpp models"
+
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
+msgid "Who's in this meeting?"
+msgstr "Who's in this meeting?"
 
 #: src/task/tab-content.tsx
 msgid "Work on this task"

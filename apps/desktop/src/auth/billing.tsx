@@ -33,6 +33,7 @@ import { type BillingAccess, BillingContext } from "./billing-context";
 
 import { setSettingValues } from "~/settings/queries";
 import { useConfigValues } from "~/shared/config";
+import { PERSONAL_LOCAL_PRO } from "~/shared/personal";
 import { getUnsupportedDesktopLocalSttRepair } from "~/stt/capabilities";
 
 async function getClaimsFromToken(
@@ -100,7 +101,8 @@ export function BillingProvider({ children }: { children: ReactNode }) {
 
   // eslint-disable-next-line @tanstack/query/exhaustive-deps -- Auth supplies request headers; the user ID is the eligibility identity.
   const canTrialQuery = useQuery({
-    enabled: !!auth?.session && !billing.isPaid,
+    // Personal fork: everything is unlocked locally; never start server trials.
+    enabled: !!auth?.session && !billing.isPaid && !PERSONAL_LOCAL_PRO,
     queryKey: [auth?.session?.user.id ?? "", "canStartTrial"],
     queryFn: async () => {
       const headers = auth?.getHeaders();
@@ -140,6 +142,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       isReady &&
       claimsAreCurrent &&
       !billing.isPaid &&
+      !PERSONAL_LOCAL_PRO &&
       canTrialQuery.data?.canStartTrial === true,
     queryKey: [auth?.session?.user.id ?? "", "startEligibleTrial"],
     queryFn: async () => {
@@ -306,6 +309,11 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Personal fork: trial dialogs never open; features are unlocked locally.
+    if (PERSONAL_LOCAL_PRO) {
+      return;
+    }
+
     if (billing.isTrialing) {
       const key = TRIAL_STARTED_SEEN_PREFIX + userId;
       if (!readSeen(key)) {
@@ -363,7 +371,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       hasTrial ||
       (isTrialIneligible && trialEligibilityRefreshedUserId === userId);
 
-    if (hasRecentTrial && !billing.isPaid) {
+    if (!PERSONAL_LOCAL_PRO && hasRecentTrial && !billing.isPaid) {
       const key = TRIAL_ENDED_SEEN_PREFIX + userId;
       if (!readSeen(key)) {
         setTrialEndedOpen(true);
@@ -384,9 +392,14 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     auth.refreshSession,
   ]);
 
+  // Personal fork: every feature gate reads this context, so forcing Pro here
+  // unlocks dictionary, templates, automations, and provider entitlements.
   const value = useMemo<BillingAccess>(
     () => ({
       ...billing,
+      ...(PERSONAL_LOCAL_PRO
+        ? { isPro: true, isPaid: true, isTrialing: false, plan: "pro" as const }
+        : {}),
       isReady,
       canStartTrial,
       upgradeToPro,

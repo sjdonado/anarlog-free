@@ -96,6 +96,11 @@ import { resolveUpdateState, useDesktopUpdateControl } from "./update-banner";
 
 import { useDevtoolsOtaPreview } from "~/store/zustand/devtools-ota-preview";
 
+vi.mock("~/shared/personal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/shared/personal")>();
+  return { ...actual, PERSONAL_UPDATER_DISABLED: false };
+});
+
 const queryClients: QueryClient[] = [];
 
 describe("useDesktopUpdateControl", () => {

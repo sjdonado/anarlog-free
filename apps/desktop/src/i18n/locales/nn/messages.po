@@ -392,6 +392,10 @@ msgstr ""
 msgid "Add members"
 msgstr ""
 
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
+msgid "Add names so speakers get labeled correctly in the transcript."
+msgstr ""
+
 #: src/settings/dictionary/index.tsx
 msgid "Add names, jargon, or product terms to prefer"
 msgstr ""
@@ -410,6 +414,7 @@ msgid "Add payment method"
 msgstr ""
 
 #: src/contacts/new-person-form.tsx
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
 msgid "Add person"
 msgstr ""
 
@@ -750,6 +755,10 @@ msgstr ""
 
 #: src/templates/auto-form.tsx
 msgid "Auto summary format"
+msgstr ""
+
+#: src/settings/general/auto-enhance.tsx
+msgid "Auto-generate summary"
 msgstr ""
 
 #: src/settings/automations/index.tsx
@@ -1154,6 +1163,10 @@ msgstr ""
 #: src/onboarding/folder-location.tsx
 #: src/settings/general/storage/index.tsx
 msgid "Choose storage location"
+msgstr ""
+
+#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
+msgid "Choose template"
 msgstr ""
 
 #: src/templates/template-icon-picker.tsx
@@ -2450,6 +2463,10 @@ msgstr ""
 msgid "General access"
 msgstr ""
 
+#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
+msgid "Generate summary"
+msgstr ""
+
 #: src/session/components/note-input/enhanced/streaming.tsx
 #: src/session/components/title-input.tsx
 msgid "Generating title..."
@@ -3504,6 +3521,10 @@ msgstr ""
 
 #: src/chat/components/input/use-dictation.ts
 msgid "No speech detected"
+msgstr ""
+
+#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
+msgid "No summary yet. Generate one from the transcript whenever you're ready, optionally with a different template."
 msgstr ""
 
 #: src/settings/sync/index.tsx
@@ -4971,6 +4992,7 @@ msgid "Skill installed"
 msgstr ""
 
 #: src/onboarding/shared.tsx
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
 msgid "Skip"
 msgstr ""
 
@@ -5054,6 +5076,10 @@ msgstr ""
 
 #: src/settings/general/meeting-settings.tsx
 msgid "Start listening when a scheduled meeting begins."
+msgstr ""
+
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
+msgid "Start recording"
 msgstr ""
 
 #: src/main/empty.tsx
@@ -5935,6 +5961,10 @@ msgstr ""
 msgid "What's new in {version}?"
 msgstr ""
 
+#: src/settings/general/auto-enhance.tsx
+msgid "When off, transcripts stay as-is until you generate the summary manually."
+msgstr ""
+
 #: src/settings/automations/workflow-builder.tsx
 msgid "When this happens"
 msgstr ""
@@ -5946,6 +5976,10 @@ msgstr ""
 
 #: src/settings/ai/stt/local-file-model.tsx
 msgid "whisper.cpp models"
+msgstr ""
+
+#: src/session/components/outer-header/speaker-pre-prompt.tsx
+msgid "Who's in this meeting?"
 msgstr ""
 
 #: src/task/tab-content.tsx

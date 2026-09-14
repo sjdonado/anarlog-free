@@ -28,6 +28,12 @@ vi.mock("~/shared/config", async (importOriginal) => ({
   useConfigValues: () => ({ local_stt_model_path: "" }),
 }));
 
+// Personal fork: cover the full upstream provider list with the filter off.
+vi.mock("~/shared/personal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/shared/personal")>();
+  return { ...actual, isPersonalSttVisible: () => true };
+});
+
 import { useConfiguredMapping } from "./select";
 
 afterEach(cleanup);
@@ -48,14 +54,14 @@ test.each([true, false])(
       ),
     });
 
-    expect(result.current.providers.anarlog.configured).toBe(true);
-    expect(result.current.providers.deepgram.configured).toBe(false);
+    expect(result.current.providers.anarlog?.configured).toBe(true);
+    expect(result.current.providers.deepgram?.configured).toBe(false);
     expect(result.current.isReady).toBe(false);
 
     useProviderAvailabilityMock.mockReturnValue({ deepgram: verified });
     rerender();
 
     expect(result.current.isReady).toBe(true);
-    expect(result.current.providers.deepgram.configured).toBe(verified);
+    expect(result.current.providers.deepgram?.configured).toBe(verified);
   },
 );

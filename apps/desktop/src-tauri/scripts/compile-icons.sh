@@ -62,6 +62,46 @@ for variant in "${VARIANTS[@]}"; do
   trap - EXIT
 done
 
+# Personal fork: keep the compiled Assets.car for the dev icon so macOS 26+
+# renders Dark/Clear/Tinted variants from the layered art. The existing
+# AppIcon.icns stays untouched (runtime picker assets + pre-Tahoe fallback).
+DEV_ICON_SRC="$ICONS_SRC/dev.icon"
+DEV_OUTPUT_DIR="$RESOURCES/dev"
+# Rebuild when missing or when any layered source is newer than the output.
+DEV_ICON_STALE=0
+if [[ -f "$DEV_OUTPUT_DIR/Assets.car" ]]; then
+  if [[ -n $(find "$DEV_ICON_SRC" -type f -newer "$DEV_OUTPUT_DIR/Assets.car" -print -quit) ]]; then
+    DEV_ICON_STALE=1
+  fi
+else
+  DEV_ICON_STALE=1
+fi
+if [[ -d "$DEV_ICON_SRC" && "$DEV_ICON_STALE" == "1" ]]; then
+  echo "Compiling dev icon (keeping Assets.car)..."
+
+  dev_tmp_dir=$(mktemp -d)
+  trap "rm -rf '$dev_tmp_dir'" EXIT
+
+  cp -R "$DEV_ICON_SRC" "$dev_tmp_dir/AppIcon.icon"
+
+  actool "$dev_tmp_dir/AppIcon.icon" \
+    --compile "$dev_tmp_dir" \
+    --output-format human-readable-text \
+    --notices --warnings --errors \
+    --output-partial-info-plist "$dev_tmp_dir/assetcatalog_generated_info.plist" \
+    --app-icon AppIcon \
+    --include-all-app-icons \
+    --enable-on-demand-resources NO \
+    --target-device mac \
+    --minimum-deployment-target 10.13 \
+    --platform macosx
+
+  cp "$dev_tmp_dir/Assets.car" "$DEV_OUTPUT_DIR/Assets.car"
+
+  rm -rf "$dev_tmp_dir"
+  trap - EXIT
+fi
+
 for variant in "${ARTIFACT_VARIANTS[@]}"; do
   source_image="$ICONS_SRC/anarlog-${variant}.png"
   output_dir="$RESOURCES/$variant"

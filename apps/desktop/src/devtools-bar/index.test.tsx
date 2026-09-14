@@ -146,6 +146,12 @@ vi.mock("./metrics", async (importOriginal) => {
   };
 });
 
+// Personal fork: cover the upstream bar with the hide flag off.
+vi.mock("~/shared/personal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/shared/personal")>();
+  return { ...actual, PERSONAL_HIDE_DEVTOOLS_BAR: false };
+});
+
 import { DevtoolsStatusBar } from "./index";
 import { resetDevtoolsMetrics, useDevtoolsMetrics } from "./metrics";
 

@@ -4,6 +4,7 @@ import {
   type Theme,
   type Window,
 } from "@tauri-apps/api/window";
+import { platform } from "@tauri-apps/plugin-os";
 import type { ReactNode } from "react";
 
 import { commands as iconCommands } from "@anlg/plugin-icon";
@@ -19,6 +20,7 @@ import { useSettingsThemeReady } from "./use-settings-theme-ready";
 
 import { useConfigValue } from "~/shared/config";
 import { useMountEffect } from "~/shared/hooks/useMountEffect";
+import { PERSONAL_NATIVE_ICON_VARIANTS } from "~/shared/personal";
 
 let activeThemePreference: ThemePreference = "system";
 
@@ -188,6 +190,26 @@ async function applyDockIcon(
   theme: ThemePreference,
   systemIsDark: boolean,
 ) {
+  // Personal fork: a flat runtime image bypasses the macOS 26+ icon
+  // variants, so macOS bundles keep the system icon for the default
+  // choice. Dev binaries have no bundle, keep the flat icon there.
+  if (
+    PERSONAL_NATIVE_ICON_VARIANTS &&
+    !import.meta.env.DEV &&
+    platform() === "macos" &&
+    normalizeAppIconPreference(appIcon) === "default"
+  ) {
+    try {
+      const result = await iconCommands.resetDockIcon();
+      if (result.status === "error") {
+        console.error("[theme] failed to reset Dock icon", result.error);
+      }
+    } catch (error) {
+      console.error("[theme] failed to reset Dock icon", error);
+    }
+    return;
+  }
+
   const appIdentifier = await getIdentifier().catch(
     () => "com.hyprnote.stable",
   );

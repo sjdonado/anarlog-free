@@ -31,6 +31,7 @@ import {
 } from "~/settings/ai/shared";
 import { type ProviderRequirement } from "~/settings/ai/shared/eligibility";
 import { sortProviders } from "~/settings/ai/shared/sort-providers";
+import { isPersonalSttVisible } from "~/shared/personal";
 import { localSttQueries } from "~/stt/useLocalSttModel";
 
 export { localSttQueries as sttModelQueries };
@@ -1108,3 +1109,12 @@ const PROVIDER_ORDER = [
 
 export const PROVIDERS = sortProviders(_PROVIDERS, PROVIDER_ORDER);
 export type ProviderId = (typeof _PROVIDERS)[number]["id"];
+
+// Personal overlay: hide unused third-party providers in UI without deleting
+// definitions, so upstream provider updates merge cleanly. Built-ins (Anarlog
+// Cloud default, on-device, local file) always stay; resolution uses PROVIDERS.
+export const VISIBLE_STT_PROVIDERS = PROVIDERS.filter(
+  (provider) =>
+    ("builtIn" in provider && provider.builtIn === true) ||
+    isPersonalSttVisible(provider.id),
+);

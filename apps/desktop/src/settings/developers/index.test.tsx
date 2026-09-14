@@ -88,6 +88,12 @@ vi.mock("~/cloud-api/client", () => ({
   revokeCloudApiKey: vi.fn(),
 }));
 
+// Personal fork: cover the upstream section with the hide flag off.
+vi.mock("~/shared/personal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/shared/personal")>();
+  return { ...actual, PERSONAL_HIDE_CLOUD_API: false };
+});
+
 vi.mock("@anlg/ui/components/ui/toast", () => ({
   sonnerToast: {
     error: mocks.toastError,

@@ -36,6 +36,7 @@ import { CustomSidebarHeader } from "./custom-sidebar-header";
 import { useBillingAccess } from "~/auth/billing-context";
 import { privacyMessages } from "~/settings/general/app-settings";
 import { useMyWorkspacesWithMirror } from "~/settings/team/mirror";
+import { PERSONAL_HIDE_ACCOUNT, PERSONAL_HIDE_TEAMS } from "~/shared/personal";
 import { type SettingsTab, type TabInput, useTabs } from "~/store/zustand/tabs";
 
 type SettingsNavItem =
@@ -175,9 +176,23 @@ export function SettingsNav() {
     },
   ];
 
+  // Personal fork: single-user only, hide Teams + Account entries. Auth
+  // itself stays mounted so account-gated features keep working.
+  const hiddenIds = new Set<string>([
+    ...(PERSONAL_HIDE_TEAMS ? ["team"] : []),
+    ...(PERSONAL_HIDE_ACCOUNT ? ["account"] : []),
+  ]);
+  const baseGroups =
+    hiddenIds.size > 0
+      ? groups.map((group) => ({
+          ...group,
+          items: group.items.filter((item) => !hiddenIds.has(item.id)),
+        }))
+      : groups;
+
   const query = search.trim().toLowerCase();
   const visibleGroups = query
-    ? groups
+    ? baseGroups
         .map((group) =>
           group.label.toLowerCase().includes(query)
             ? group
@@ -189,7 +204,7 @@ export function SettingsNav() {
               },
         )
         .filter((group) => group.items.length > 0)
-    : groups;
+    : baseGroups;
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">

@@ -9,6 +9,7 @@ import {
 
 import { isAppStoreBuild } from "~/shared/app-store";
 import { useMountEffect } from "~/shared/hooks/useMountEffect";
+import { PERSONAL_UPDATER_DISABLED } from "~/shared/personal";
 import { useDevtoolsOtaPreview } from "~/store/zustand/devtools-ota-preview";
 
 export type UpdateBannerStatus =
@@ -98,7 +99,8 @@ const DISABLED_UPDATE_CONTROL: DesktopUpdateControl = {
 };
 
 export function useDesktopUpdateControl(): DesktopUpdateControl {
-  const updaterEnabled = !isAppStoreBuild();
+  // Personal fork: no distribution channel, updater stays off entirely.
+  const updaterEnabled = !isAppStoreBuild() && !PERSONAL_UPDATER_DISABLED;
   const queryClient = useQueryClient();
   const [eventState, setEventState] = useState<UpdateEvent | null>(null);
   const [acknowledgedVersion, setAcknowledgedVersion] = useState<string | null>(

@@ -16,6 +16,10 @@ import { FolderPicker } from "../folder-picker";
 import { RecordingIcon, useHasTranscript } from "../shared";
 import { TitleInput } from "../title-input";
 import { OverflowButton } from "./overflow";
+import {
+  shouldPromptForSpeakers,
+  SpeakerPrePrompt,
+} from "./speaker-pre-prompt";
 
 import { useAudioPlayer } from "~/audio-player";
 import { useNow } from "~/calendar/hooks";
@@ -32,6 +36,7 @@ import {
   type RemoteMeeting,
 } from "~/session/hooks/useRemoteMeeting";
 import { useSessionEvent } from "~/session/hooks/useSessionEvent";
+import { useSessionParticipants } from "~/session/queries";
 import { useWindowControlsGutter } from "~/shared/hooks/useWindowControlsGutter";
 import { getScheme } from "~/shared/utils";
 import type { EditorView, Tab } from "~/store/zustand/tabs/schema";
@@ -211,7 +216,11 @@ function HeaderMeetingAction({
   const { t } = useLingui();
   const joiningMeetingRef = useRef(false);
   const [joiningMeeting, setJoiningMeeting] = useState(false);
-  const start = useCallback(async () => {
+  const participants = useSessionParticipants(sessionId);
+  const [prePromptOpen, setPrePromptOpen] = useState(false);
+  // Join & record waits for the speaker dialog; plain Record does not join.
+  const pendingJoinRef = useRef(false);
+  const startDirect = useCallback(async () => {
     if (!isMainWebviewWindow()) {
       await requestMainListenerControl("start", sessionId);
       return;
@@ -219,6 +228,16 @@ function HeaderMeetingAction({
 
     await startListening();
   }, [sessionId, startListening]);
+  const start = useCallback(async () => {
+    if (shouldPromptForSpeakers(sessionId, participants.length)) {
+      pendingJoinRef.current = false;
+      setPrePromptOpen(true);
+      return;
+    }
+
+    await startDirect();
+  }, [participants.length, sessionId, startDirect]);
+
   const openMeeting = useCallback(async () => {
     if (!meetingLink) {
       return;
@@ -243,7 +262,9 @@ function HeaderMeetingAction({
 
     void openerCommands.openUrl(url, null);
   }, [isWelcomeDemo, meetingLink]);
-  const joinMeeting = useCallback(async () => {
+  // Confirmed path: never re-checks the prompt, because the participant
+  // live query may not have re-emitted yet when names were just saved.
+  const performJoin = useCallback(async () => {
     if (joiningMeetingRef.current) {
       return;
     }
@@ -251,12 +272,42 @@ function HeaderMeetingAction({
     joiningMeetingRef.current = true;
     setJoiningMeeting(true);
     try {
-      await Promise.all([openMeeting(), start()]);
+      await Promise.all([openMeeting(), startDirect()]);
     } finally {
       joiningMeetingRef.current = false;
       setJoiningMeeting(false);
     }
-  }, [openMeeting, start]);
+  }, [openMeeting, startDirect]);
+  const joinMeeting = useCallback(async () => {
+    if (joiningMeetingRef.current) {
+      return;
+    }
+
+    // Names first: the meeting URL opens only after the dialog confirms.
+    if (shouldPromptForSpeakers(sessionId, participants.length)) {
+      pendingJoinRef.current = true;
+      setPrePromptOpen(true);
+      return;
+    }
+
+    await performJoin();
+  }, [participants.length, performJoin, sessionId]);
+  const handlePrePromptDone = useCallback(
+    (proceed: boolean) => {
+      setPrePromptOpen(false);
+      if (!proceed) {
+        pendingJoinRef.current = false;
+        return;
+      }
+      if (pendingJoinRef.current) {
+        pendingJoinRef.current = false;
+        void performJoin();
+        return;
+      }
+      void startDirect();
+    },
+    [performJoin, startDirect],
+  );
   const countdown = useEventCountdown(sessionId);
   const stopListening = useCallback(() => {
     if (!isMainWebviewWindow()) {
@@ -320,6 +371,11 @@ function HeaderMeetingAction({
 
   return (
     <Popover open={showWelcomeDemoPrompt}>
+      <SpeakerPrePrompt
+        sessionId={sessionId}
+        open={prePromptOpen}
+        onDone={handlePrePromptDone}
+      />
       <div className="relative mr-1 flex min-w-0 shrink-0 items-center">
         <PopoverAnchor asChild>
           <Button

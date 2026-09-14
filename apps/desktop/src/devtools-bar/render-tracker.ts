@@ -17,7 +17,9 @@ const TOP_COMPONENTS_WINDOW_TICKS = 10;
 const ignoredProps = new WeakSet<object>();
 let pendingRenders = 0;
 let buckets: Array<Map<string, number>> = [new Map()];
-let outlinesEnabled = import.meta.env.DEV;
+// Personal default: outlines off (toggle via the renders/sec readout in the
+// devtools bar). Upstream default was import.meta.env.DEV.
+let outlinesEnabled = false;
 let stopTracking: (() => void) | null = null;
 
 /**

@@ -6,6 +6,7 @@ import {
   formatDownloadProgress,
   isDeprecatedSttModel,
   PROVIDERS,
+  VISIBLE_STT_PROVIDERS,
 } from "./shared";
 
 describe("STT providers", () => {
@@ -53,6 +54,24 @@ describe("STT providers", () => {
 
       expect(markup).toMatch(/<(img|svg)\b/);
       expect(markup).not.toContain("iconify-icon");
+    }
+  });
+
+  test("personal overlay keeps built-ins plus the allowlisted providers", () => {
+    expect(VISIBLE_STT_PROVIDERS.map(({ id }) => id).sort()).toEqual(
+      [
+        "anarlog",
+        "soniqo",
+        "apple_speech",
+        "local_file",
+        "openai",
+        "elevenlabs",
+        "groq",
+        "custom",
+      ].sort(),
+    );
+    for (const { id } of VISIBLE_STT_PROVIDERS) {
+      expect(PROVIDERS.some((provider) => provider.id === id)).toBe(true);
     }
   });
 });

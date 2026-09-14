@@ -185,8 +185,17 @@ fn build_transcription_options(
         for keyword in &params.keywords {
             options.push_keyword(keyword);
         }
-    } else if let Some(language) = params.languages.first() {
-        options.push_language(language.iso639().code().to_string());
+    } else {
+        if let Some(language) = params.languages.first() {
+            options.push_language(language.iso639().code().to_string());
+        }
+        // Whisper-family models take speaker names and terms via `prompt`,
+        // capped so long keyword lists cannot overflow the field.
+        if let CreateTranscriptionOptions::Whisper(options) = &mut options
+            && !params.keywords.is_empty()
+        {
+            options.prompt = Some(crate::adapter::openai::keyword_prompt(params));
+        }
     }
 
     options
@@ -651,6 +660,60 @@ mod tests {
 
         assert_eq!(languages, vec!["en", "ko"]);
         assert!(!fields.iter().any(|field| field.name == "language"));
+    }
+
+    #[test]
+    fn whisper_sends_keyword_names_as_prompt() {
+        let options = build_transcription_options(
+            &ListenParams {
+                model: Some("whisper-1".to_string()),
+                keywords: vec!["Ada".to_string(), "Juan Pérez".to_string()],
+                ..Default::default()
+            },
+            true,
+            false,
+        );
+
+        let fields = options
+            .multipart_text_fields()
+            .expect("serialize multipart");
+        assert!(fields.iter().any(
+            |field| field.name == "prompt" && field.value == "Ada, Juan Pérez"
+        ));
+    }
+
+    #[test]
+    fn whisper_omits_prompt_without_keywords() {
+        let options = build_transcription_options(
+            &ListenParams {
+                model: Some("whisper-1".to_string()),
+                ..Default::default()
+            },
+            true,
+            false,
+        );
+
+        let fields = options
+            .multipart_text_fields()
+            .expect("serialize multipart");
+        assert!(!fields.iter().any(|field| field.name == "prompt"));
+    }
+
+    #[test]
+    fn gpt_transcribe_keeps_keyword_list_without_prompt() {
+        let options = build_transcription_options(
+            &ListenParams {
+                keywords: vec!["Ada".to_string()],
+                ..Default::default()
+            },
+            true,
+            false,
+        );
+
+        let fields = options
+            .multipart_text_fields()
+            .expect("serialize multipart");
+        assert!(!fields.iter().any(|field| field.name == "prompt"));
     }
 
     #[test]

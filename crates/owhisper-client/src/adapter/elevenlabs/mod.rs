@@ -4,6 +4,7 @@ mod language;
 mod live;
 
 use crate::providers::Provider;
+use owhisper_interface::ListenParams;
 use serde::Deserialize;
 
 use super::LanguageSupport;
@@ -37,6 +38,38 @@ impl ElevenLabsAdapter {
                 true,
             )
         })
+    }
+
+    /// Keyterms bias Scribe toward names and domain terms (keyterm prompting).
+    /// Enforces the API limits: at most 5 words, no `<>{}[]\`, call-site char
+    /// cap (50 batch, 20 realtime), at most 50 unique terms. Character (not
+    /// byte) counts match the documented limits; `split_whitespace` already
+    /// collapses interior whitespace runs.
+    pub(crate) fn keyterms(params: &ListenParams, max_chars: usize) -> Vec<String> {
+        let mut seen = std::collections::HashSet::new();
+        params
+            .keywords
+            .iter()
+            .filter_map(|keyword| {
+                let term = keyword
+                    .split_whitespace()
+                    .take(5)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let term: String =
+                    term.chars().filter(|c| !matches!(c, '<' | '>' | '{' | '}' | '[' | ']' | '\\')).collect();
+                let term = term.trim();
+                if term.is_empty()
+                    || term.chars().count() > max_chars
+                    || !seen.insert(term.to_string())
+                {
+                    None
+                } else {
+                    Some(term.to_string())
+                }
+            })
+            .take(50)
+            .collect()
     }
 
     pub(crate) fn batch_api_url(api_base: &str) -> String {
@@ -124,6 +157,26 @@ mod tests {
                 input
             );
         }
+    }
+
+    #[test]
+    fn test_keyterms_enforce_api_limits() {
+        let params = owhisper_interface::ListenParams {
+            keywords: vec![
+                "Ada".to_string(),
+                "a b c d e f".to_string(),
+                "with<bad>chars".to_string(),
+                "   ".to_string(),
+                "x".repeat(60),
+            ],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            ElevenLabsAdapter::keyterms(&params, 50),
+            vec!["Ada", "a b c d e", "withbadchars"]
+        );
+        assert_eq!(ElevenLabsAdapter::keyterms(&params, 3), vec!["Ada"]);
     }
 
     #[test]

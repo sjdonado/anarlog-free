@@ -86,6 +86,10 @@ impl ElevenLabsAdapter {
             form = form.text("num_speakers", num_speakers.to_string());
         }
 
+        for keyterm in Self::keyterms(params, 50) {
+            form = form.text("keyterms", keyterm);
+        }
+
         if let Some(lang) = params.languages.first() {
             form = form.text("language_code", lang.iso639().code().to_string());
         }
