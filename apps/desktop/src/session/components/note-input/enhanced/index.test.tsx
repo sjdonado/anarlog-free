@@ -70,6 +70,11 @@ vi.mock("./config-error", () => ({
   ConfigError: () => <div>Config error</div>,
 }));
 
+// Empty-state CTA is covered in empty-summary-cta.test.tsx.
+vi.mock("./empty-summary-cta", () => ({
+  EmptySummaryCta: () => <div>Empty summary CTA</div>,
+}));
+
 vi.mock("./editor", () => ({
   EnhancedEditor: ({
     content,

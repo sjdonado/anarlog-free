@@ -167,6 +167,8 @@ export function useCaptureLifecycle(sessionId: string) {
     useConfigValue("audio_retention"),
   );
   const rememberSpeakers = useConfigValue("remember_speakers") === true;
+  const autoEnhanceEnabled =
+    useConfigValue("auto_enhance_after_transcript") !== false;
   const {
     conn,
     isReady: connectionReady,
@@ -756,6 +758,7 @@ export function useCaptureLifecycle(sessionId: string) {
           transcriptTouched ||
           batchCompleted;
         const shouldEnhance =
+          autoEnhanceEnabled &&
           hasTranscriptEvidence &&
           (transcriptIsComplete ||
             (postCaptureAction === "none" &&
@@ -953,6 +956,7 @@ export function useCaptureLifecycle(sessionId: string) {
     },
     [
       audioRetention,
+      autoEnhanceEnabled,
       conn?.model,
       conn?.provider,
       participantHumanIds,

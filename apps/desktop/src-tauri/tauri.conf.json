@@ -61,6 +61,7 @@
       "resources/anagram-dark/AppIcon.icns": "icons/anagram-dark.icns",
       "resources/dev/AppIcon.icns": "icons/dev.icns",
       "resources/dev-dark/AppIcon.icns": "icons/dev-dark.icns",
+      "resources/dev/Assets.car": "Assets.car",
       "resources/journal/AppIcon.icns": "icons/journal.icns",
       "resources/notepad/AppIcon.icns": "icons/notepad.icns",
       "resources/stone/AppIcon.icns": "icons/stone.icns",

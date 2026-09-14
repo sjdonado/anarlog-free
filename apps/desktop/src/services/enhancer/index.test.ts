@@ -383,6 +383,26 @@ describe("EnhancerService", () => {
     expect(queueSpy).not.toHaveBeenCalled();
   });
 
+  it("skips silently when auto-enhance is disabled, without touching storage", async () => {
+    snapshot = createSnapshot({ wordCount: 10 });
+    const service = new EnhancerService(
+      createDeps({ isAutoEnhanceEnabled: () => false }),
+    );
+    const queueSpy = vi.spyOn(service, "queueAutoEnhance");
+    const events: unknown[] = [];
+    service.on((event) => events.push(event));
+
+    await expect(
+      service.queueAutoEnhanceIfSummaryEmpty("session-1"),
+    ).resolves.toEqual({ type: "skipped" });
+    await service.requestAutoEnhance("session-1", "if_empty");
+
+    expect(queueSpy).not.toHaveBeenCalled();
+    expect(mocks.ensureSummaryDocument).not.toHaveBeenCalled();
+    expect(mocks.ensurePendingAutoEnhanceDocument).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+  });
+
   it("does not replace an attachment-only summary", async () => {
     snapshot = createSnapshot({
       notes: [

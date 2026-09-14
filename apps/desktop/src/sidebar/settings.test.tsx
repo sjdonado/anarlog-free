@@ -94,6 +94,17 @@ vi.mock("~/settings/team/mirror", () => ({
   }),
 }));
 
+// Personal fork: exercise the full upstream nav with Teams visible.
+vi.mock("~/shared/personal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/shared/personal")>();
+  return {
+    ...actual,
+    PERSONAL_LOCAL_PRO: false,
+    PERSONAL_HIDE_TEAMS: false,
+    PERSONAL_HIDE_ACCOUNT: false,
+  };
+});
+
 vi.mock("~/store/zustand/tabs", () => {
   const getState = () => ({
     currentTab: mocks.currentTab,

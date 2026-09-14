@@ -31,6 +31,23 @@ struct OpenAILiveItem {
     completed_transcript: Option<String>,
 }
 
+/// Whisper-family `prompt` cap: names and terms joined with ", ", truncated
+/// on a char boundary so pathological keyword lists cannot overflow the field.
+pub(crate) const KEYWORD_PROMPT_MAX_CHARS: usize = 1000;
+
+pub(crate) fn keyword_prompt(params: &owhisper_interface::ListenParams) -> String {
+    let joined = params.keywords.join(", ");
+    if joined.chars().count() <= KEYWORD_PROMPT_MAX_CHARS {
+        return joined;
+    }
+    joined
+        .chars()
+        .take(KEYWORD_PROMPT_MAX_CHARS)
+        .collect::<String>()
+        .trim_end_matches(|c: char| c == ',' || c == ' ')
+        .to_string()
+}
+
 impl OpenAIAdapter {
     pub fn for_live_sample_rate(input_sample_rate: u32) -> Self {
         Self {
@@ -119,6 +136,24 @@ impl OpenAIAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keyword_prompt_caps_long_lists() {
+        let params = owhisper_interface::ListenParams {
+            keywords: vec!["a".repeat(600), "b".repeat(600)],
+            ..Default::default()
+        };
+
+        let prompt = keyword_prompt(&params);
+        assert!(prompt.chars().count() <= KEYWORD_PROMPT_MAX_CHARS);
+        assert!(prompt.starts_with(&"a".repeat(600)));
+
+        let short = keyword_prompt(&owhisper_interface::ListenParams {
+            keywords: vec!["Ada".to_string(), "Juan".to_string()],
+            ..Default::default()
+        });
+        assert_eq!(short, "Ada, Juan");
+    }
 
     #[test]
     fn test_is_openai_host() {

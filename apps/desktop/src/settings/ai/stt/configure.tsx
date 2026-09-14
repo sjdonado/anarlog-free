@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Accordion } from "@anlg/ui/components/ui/accordion";
 
 import { useSttSettings } from "./context";
-import { ProviderId, PROVIDERS } from "./shared";
+import { ProviderId, PROVIDERS, VISIBLE_STT_PROVIDERS } from "./shared";
 
 import {
   filterProviders,
@@ -19,7 +19,7 @@ export function ConfigureProviders() {
   const currentProvider = useConfigValue("current_stt_provider");
   const [search, setSearch] = useState("");
   const providers = filterProviders(
-    PROVIDERS.filter((provider) => !("builtIn" in provider)),
+    VISIBLE_STT_PROVIDERS.filter((provider) => !("builtIn" in provider)),
     search,
   );
 

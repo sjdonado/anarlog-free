@@ -135,7 +135,9 @@ impl RealtimeSttAdapter for OpenAIAdapter {
                                 .then_some(language_codes),
                             keywords: (uses_plural_hints && !params.keywords.is_empty())
                                 .then(|| params.keywords.clone()),
-                            prompt: None,
+                            // Whisper-family realtime models take names via `prompt`.
+                            prompt: (!uses_plural_hints && !params.keywords.is_empty())
+                                .then(|| super::keyword_prompt(params)),
                         }),
                         turn_detection: (model != "gpt-live-transcribe").then_some(
                             TurnDetectionConfig {
@@ -743,6 +745,19 @@ mod tests {
                 .get("turn_detection")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn legacy_model_uses_keyword_names_as_prompt() {
+        let json = initial_message_json(&ListenParams {
+            model: Some("gpt-4o-transcribe".to_string()),
+            keywords: vec!["Ada".to_string(), "Juan".to_string()],
+            ..Default::default()
+        });
+        let transcription = &json["session"]["audio"]["input"]["transcription"];
+
+        assert_eq!(transcription["prompt"], "Ada, Juan");
+        assert!(transcription.get("keywords").is_none());
     }
 
     #[test]

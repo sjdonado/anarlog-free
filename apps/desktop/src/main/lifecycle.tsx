@@ -120,6 +120,8 @@ function EnhancerInit() {
   const model = useLanguageModel("enhance");
   const { conn: llmConn } = useLLMConnection();
   const selectedTemplateId = useConfigValue("selected_template_id");
+  const autoEnhanceEnabled =
+    useConfigValue("auto_enhance_after_transcript") !== false;
 
   const modelRef = useRef(model);
   modelRef.current = model;
@@ -127,6 +129,8 @@ function EnhancerInit() {
   llmConnRef.current = llmConn;
   const templateIdRef = useRef(selectedTemplateId);
   templateIdRef.current = selectedTemplateId;
+  const autoEnhanceRef = useRef(autoEnhanceEnabled);
+  autoEnhanceRef.current = autoEnhanceEnabled;
 
   useEffect(() => {
     if (!aiTaskStore) return;
@@ -136,6 +140,7 @@ function EnhancerInit() {
       getModel: () => modelRef.current,
       getLLMConn: () => llmConnRef.current,
       getSelectedTemplateId: () => templateIdRef.current || undefined,
+      isAutoEnhanceEnabled: () => autoEnhanceRef.current,
     });
 
     return () => service.dispose();

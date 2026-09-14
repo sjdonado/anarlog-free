@@ -58,6 +58,7 @@ export function AppSettingsView({
                 }
                 checked={automaticUpdates.value}
                 onChange={automaticUpdates.onChange}
+                disabled={automaticUpdates.disabled}
               />
             </>
           )}

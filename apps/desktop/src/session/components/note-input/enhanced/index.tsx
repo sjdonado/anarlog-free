@@ -5,6 +5,7 @@ import type { NoteEditorRef } from "@anlg/editor/note";
 
 import { ConfigError } from "./config-error";
 import { EnhancedEditor } from "./editor";
+import { EmptySummaryCta } from "./empty-summary-cta";
 import { EnhanceError } from "./enhance-error";
 import { StreamingView } from "./streaming";
 
@@ -85,6 +86,27 @@ export const Enhanced = forwardRef<
           sessionTitle={sessionTitle}
           enhancedNoteId={enhancedNoteId}
         />
+      );
+    }
+
+    if (status === "idle" && !hasContent) {
+      return (
+        <>
+          <EmptySummaryCta
+            sessionId={sessionId}
+            enhancedNoteId={enhancedNoteId}
+          />
+          <EnhancedEditor
+            ref={ref}
+            sessionId={sessionId}
+            sessionTitle={sessionTitle}
+            enhancedNoteId={enhancedNoteId}
+            content={enhancedNote.content}
+            onNavigateToTitle={onNavigateToTitle}
+            onViewReady={onViewReady}
+            onViewDisposed={onViewDisposed}
+          />
+        </>
       );
     }
 

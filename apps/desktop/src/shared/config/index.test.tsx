@@ -1,6 +1,12 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { resolveConfigValue } from ".";
+
+// Personal fork: cover the upstream default with the updater override off.
+vi.mock("~/shared/personal", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/shared/personal")>();
+  return { ...actual, PERSONAL_UPDATER_DISABLED: false };
+});
 
 describe("resolveConfigValue", () => {
   test("uses legacy don't-save when audio retention is missing", () => {

@@ -10,6 +10,7 @@ import { CircleNotch } from "@anlg/ui/components/icons";
 export { SettingsAccount } from "./account";
 import { AppSettingsView } from "./app-settings";
 import { AudioSettingsView } from "./audio-settings";
+import { AutoEnhanceToggle } from "./auto-enhance";
 import {
   CORE_TRANSCRIPTION_LANGUAGE_CODES,
   getAdditionalSpokenLanguages,
@@ -32,6 +33,7 @@ import {
 } from "~/settings/queries";
 import { isAppStoreBuild } from "~/shared/app-store";
 import { resolveConfigValue, resolveConfigValues } from "~/shared/config";
+import { PERSONAL_UPDATER_DISABLED } from "~/shared/personal";
 
 const SETTINGS_FORM_KEYS = [
   "autostart",
@@ -219,11 +221,20 @@ function SettingsSectionContent({
                   value: values.autostart,
                   onChange: (value) => submitFieldValue("autostart", value),
                 }}
-                automaticUpdates={{
-                  value: values.automatic_updates,
-                  onChange: (value) =>
-                    submitFieldValue("automatic_updates", value),
-                }}
+                automaticUpdates={
+                  PERSONAL_UPDATER_DISABLED
+                    ? // Personal fork: no distribution channel, keep visible but off.
+                      {
+                        value: false as boolean,
+                        onChange: () => {},
+                        disabled: true,
+                      }
+                    : {
+                        value: values.automatic_updates,
+                        onChange: (value) =>
+                          submitFieldValue("automatic_updates", value),
+                      }
+                }
                 showAppInDock={{
                   value: values.show_app_in_dock,
                   onChange: (value) =>
@@ -331,6 +342,7 @@ function SettingsSectionContent({
               <Trans>Summaries</Trans>
             </h2>
             <SummaryLengthSelector />
+            <AutoEnhanceToggle />
           </div>
 
           <div>

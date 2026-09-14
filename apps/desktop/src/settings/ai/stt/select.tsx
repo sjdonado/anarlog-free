@@ -55,8 +55,8 @@ import {
   formatModelSize,
   isDeprecatedSttModel,
   type ProviderId,
-  PROVIDERS,
   sttModelQueries,
+  VISIBLE_STT_PROVIDERS,
 } from "./shared";
 
 import { useBillingAccess } from "~/auth/billing-context";
@@ -131,7 +131,9 @@ export function SelectProviderAndModel() {
     selectedSttModel,
     selectedProviderConfigured,
   );
-  const selectableProviders = PROVIDERS.filter(({ disabled }) => !disabled);
+  const selectableProviders = VISIBLE_STT_PROVIDERS.filter(
+    ({ disabled }) => !disabled,
+  );
   const configuredProviderIds = getConfiguredProviderIds(
     selectableProviders,
     configuredProviders,
@@ -629,17 +631,19 @@ function getModelCategoryLabel(category?: ModelCategory) {
 }
 
 export function useConfiguredMapping(): {
-  providers: Record<
-    ProviderId,
-    {
-      configured: boolean;
-      models: ModelEntry[];
-    }
+  providers: Partial<
+    Record<
+      ProviderId,
+      {
+        configured: boolean;
+        models: ModelEntry[];
+      }
+    >
   >;
   isReady: boolean;
 } {
   const billing = useBillingAccess();
-  const availability = useProviderAvailability("stt", PROVIDERS);
+  const availability = useProviderAvailability("stt", VISIBLE_STT_PROVIDERS);
   const { providers: configuredProviders, isReady } =
     useAiProvidersState("stt");
   const { local_stt_model_path } = useConfigValues([
@@ -682,7 +686,7 @@ export function useConfiguredMapping(): {
   });
 
   const providers = Object.fromEntries(
-    PROVIDERS.map((provider) => {
+    VISIBLE_STT_PROVIDERS.map((provider) => {
       const config = configuredProviders[providerRowId("stt", provider.id)] as
         | AIProviderStorage
         | undefined;
