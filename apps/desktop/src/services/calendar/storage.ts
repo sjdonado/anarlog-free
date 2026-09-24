@@ -6,10 +6,12 @@ import type {
 import type { Ctx } from "./ctx";
 import type { ExistingEvent, IncomingParticipants } from "./fetch/types";
 import type { SessionEventUpdate } from "./process/events/execute";
+import { migrateIgnoredEventIds } from "./process/events/ignored";
 import type { EventsSyncOutput } from "./process/events/types";
 import type { ParticipantsSyncOutput } from "./process/participants/types";
 
 import { getCalendarTrackingKey } from "~/calendar/utils";
+import { HUMAN_NAME_IS_PLACEHOLDER_SQL } from "~/contacts/identity";
 import { executeTransaction, liveQueryClient } from "~/db";
 import { DEFAULT_USER_ID, id } from "~/shared/utils";
 
@@ -43,6 +45,7 @@ type SessionSqlRow = {
   owner_user_id: string;
   event_json: string;
   tracking_id: string;
+  calendar_id: string;
 };
 
 export type SessionSyncRow = {
@@ -50,14 +53,22 @@ export type SessionSyncRow = {
   ownerUserId: string;
   eventJson: string;
   trackingId: string;
+  calendarId?: string;
 };
 
 type HumanSqlRow = {
   id: string;
   email: string;
+  name: string;
+  organization_id: string;
 };
 
-export type ParticipantHuman = HumanSqlRow;
+export type ParticipantHuman = {
+  id: string;
+  email: string;
+  name: string;
+  organizationId: string;
+};
 
 type ParticipantMappingSqlRow = {
   id: string;
@@ -80,6 +91,28 @@ export type ParticipantSyncSnapshot = {
 };
 
 type Statement = { sql: string; params: unknown[] };
+
+const WORKSPACE_ID_SQL = `NULLIF((
+  SELECT json_extract(value_json, '$.workspace_id')
+  FROM app_settings
+  WHERE id = 'cloudsync_workspace_binding'
+), '')`;
+
+const ORGANIZATION_ID_BY_NAME_SQL = `IFNULL((
+  SELECT id
+  FROM organizations
+  WHERE deleted_at IS NULL AND ? <> '' AND lower(name) = lower(?)
+  ORDER BY created_at, id
+  LIMIT 1
+), '')`;
+
+function ownerUserIdSql(): string {
+  return `COALESCE(
+    NULLIF(NULLIF(?, ''), '${DEFAULT_USER_ID}'),
+    ${WORKSPACE_ID_SQL},
+    '${DEFAULT_USER_ID}'
+  )`;
+}
 
 export async function loadEnabledCalendars(
   provider: CalendarProviderType,
@@ -346,7 +379,9 @@ export async function loadEventsForSync(
           )
           ${incomingClause}
         )
-      ORDER BY deleted_at IS NOT NULL, created_at, id
+      ORDER BY
+        EXISTS (SELECT 1 FROM sessions WHERE sessions.event_id = events.id AND sessions.deleted_at IS NULL) DESC,
+        deleted_at IS NOT NULL, created_at, id
     `,
     [
       ...calendarIds,
@@ -371,7 +406,7 @@ export async function loadSessionsForTrackingIds(
 
   const rows = await liveQueryClient.execute<SessionSqlRow>(
     `
-      SELECT id, owner_user_id, event_json, tracking_id
+      SELECT id, owner_user_id, event_json, tracking_id, calendar_id
       FROM (
         SELECT
           session.id,
@@ -379,6 +414,7 @@ export async function loadSessionsForTrackingIds(
           session.event_json,
           session.created_at,
           COALESCE(
+            NULLIF(event.tracking_id_event, ''),
             CASE
               WHEN json_valid(session.event_json)
               THEN NULLIF(
@@ -387,12 +423,18 @@ export async function loadSessionsForTrackingIds(
               )
               ELSE NULL
             END,
-            NULLIF(session.external_event_id, ''),
-            NULLIF(event.tracking_id_event, '')
-          ) AS tracking_id
+            NULLIF(session.external_event_id, '')
+          ) AS tracking_id,
+          COALESCE(
+            NULLIF(event.calendar_id, ''),
+            CASE WHEN json_valid(session.event_json)
+              THEN json_extract(session.event_json, '$.calendar_id')
+              ELSE NULL END,
+            ''
+          ) AS calendar_id
         FROM sessions AS session
         LEFT JOIN events AS event
-          ON event.id = session.event_id AND event.deleted_at IS NULL
+          ON event.id = session.event_id
         WHERE session.deleted_at IS NULL
       ) AS session_with_event
       WHERE tracking_id IN (${placeholders(ids.length)})
@@ -406,6 +448,7 @@ export async function loadSessionsForTrackingIds(
     ownerUserId: row.owner_user_id,
     eventJson: row.event_json,
     trackingId: row.tracking_id,
+    calendarId: row.calendar_id,
   }));
 }
 
@@ -427,7 +470,7 @@ export async function loadParticipantSyncSnapshot(
     emails.length > 0
       ? liveQueryClient.execute<HumanSqlRow>(
           `
-            SELECT id, email
+            SELECT id, email, name, organization_id
             FROM humans
             WHERE deleted_at IS NULL
               AND lower(email) IN (${placeholders(emails.length)})
@@ -452,7 +495,12 @@ export async function loadParticipantSyncSnapshot(
 
   return {
     sessions,
-    humans: humanRows,
+    humans: humanRows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      organizationId: row.organization_id,
+    })),
     mappings: mappingRows.map((row) => ({
       id: row.id,
       sessionId: row.session_id,
@@ -476,6 +524,11 @@ export async function applyConnectionSync({
   const now = new Date().toISOString();
   const statements: Statement[] = [];
   const eventIdsByKey = new Map<string, string>();
+  if (ctx.provider === "apple") {
+    statements.push(
+      ...migrateIgnoredEventIds([...events.toUpdate, ...events.toAdd], now),
+    );
+  }
 
   for (const eventId of events.toDelete) {
     statements.push({
@@ -614,6 +667,90 @@ export async function applyConnectionSync({
     });
   }
 
+  type CompanyPlan = {
+    name: string;
+    ownerUserId: string;
+    newHumanEmails: string[];
+    enrichHumanIds: string[];
+  };
+  const companyNames = new Map<string, CompanyPlan>();
+  const planCompany = (human: {
+    companyName?: string;
+    ownerUserId: string;
+  }): CompanyPlan | undefined => {
+    if (!human.companyName) return undefined;
+    const key = human.companyName.toLowerCase();
+    let plan = companyNames.get(key);
+    if (!plan) {
+      plan = {
+        name: human.companyName,
+        ownerUserId: human.ownerUserId,
+        newHumanEmails: [],
+        enrichHumanIds: [],
+      };
+      companyNames.set(key, plan);
+    }
+    return plan;
+  };
+  for (const human of participants.humansToCreate) {
+    planCompany(human)?.newHumanEmails.push(human.email.toLowerCase());
+  }
+  for (const human of participants.humansToEnrich) {
+    planCompany(human)?.enrichHumanIds.push(human.id);
+  }
+  for (const company of companyNames.values()) {
+    const stillNeeded: string[] = [];
+    if (company.newHumanEmails.length > 0) {
+      stillNeeded.push(`EXISTS (
+          SELECT 1
+          FROM (VALUES ${company.newHumanEmails.map(() => "(?)").join(", ")}) AS planned
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM humans
+            WHERE lower(email) = planned.column1 AND deleted_at IS NULL
+          )
+        )`);
+    }
+    if (company.enrichHumanIds.length > 0) {
+      stillNeeded.push(`EXISTS (
+          SELECT 1
+          FROM humans
+          WHERE id IN (${placeholders(company.enrichHumanIds.length)})
+            AND organization_id = '' AND deleted_at IS NULL
+        )`);
+    }
+    const stillNeededSql = `AND (${stillNeeded.join(" OR ")})`;
+    statements.push({
+      sql: `
+        INSERT INTO organizations (
+          id, workspace_id, owner_user_id, name, memo, pinned, pin_order,
+          metadata_json, created_at, updated_at, deleted_at
+        )
+        SELECT
+          ?,
+          ${WORKSPACE_ID_SQL},
+          ${ownerUserIdSql()},
+          ?, '', 0, NULL, '{}', ?, ?, NULL
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM organizations
+          WHERE lower(name) = lower(?) AND deleted_at IS NULL
+        )
+        ${stillNeededSql}
+      `,
+      params: [
+        id(),
+        company.ownerUserId,
+        company.name,
+        now,
+        now,
+        company.name,
+        ...company.newHumanEmails,
+        ...company.enrichHumanIds,
+      ],
+    });
+  }
+
   for (const human of participants.humansToCreate) {
     statements.push({
       sql: `
@@ -623,28 +760,18 @@ export async function applyConnectionSync({
           owner_user_id,
           name,
           email,
+          organization_id,
           created_at,
           updated_at,
           deleted_at
         )
         SELECT
           ?,
-          NULLIF((
-            SELECT json_extract(value_json, '$.workspace_id')
-            FROM app_settings
-            WHERE id = 'cloudsync_workspace_binding'
-          ), ''),
-          COALESCE(
-            NULLIF(NULLIF(?, ''), '${DEFAULT_USER_ID}'),
-            NULLIF((
-              SELECT json_extract(value_json, '$.workspace_id')
-              FROM app_settings
-              WHERE id = 'cloudsync_workspace_binding'
-            ), ''),
-            '${DEFAULT_USER_ID}'
-          ),
+          ${WORKSPACE_ID_SQL},
+          ${ownerUserIdSql()},
           ?,
           ?,
+          ${ORGANIZATION_ID_BY_NAME_SQL},
           ?,
           ?,
           NULL
@@ -659,10 +786,41 @@ export async function applyConnectionSync({
         human.ownerUserId,
         human.name,
         human.email,
+        human.companyName ?? "",
+        human.companyName ?? "",
         now,
         now,
         human.email,
       ],
+    });
+  }
+
+  for (const human of participants.humansToEnrich) {
+    const assignments: string[] = [];
+    const params: unknown[] = [];
+    if (human.name) {
+      assignments.push(
+        `name = CASE WHEN ${HUMAN_NAME_IS_PLACEHOLDER_SQL} THEN ? ELSE name END`,
+      );
+      params.push(human.name);
+    }
+    if (human.companyName) {
+      assignments.push(
+        `organization_id = CASE
+          WHEN organization_id = '' THEN ${ORGANIZATION_ID_BY_NAME_SQL}
+          ELSE organization_id
+        END`,
+      );
+      params.push(human.companyName, human.companyName);
+    }
+    if (assignments.length === 0) continue;
+    statements.push({
+      sql: `
+        UPDATE humans
+        SET ${assignments.join(", ")}, updated_at = ?
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+      params: [...params, now, human.id],
     });
   }
 

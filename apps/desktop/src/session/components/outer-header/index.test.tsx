@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
     standaloneWindow?: boolean;
   }>,
   windowControlsGutter: true,
+  windowsStyleTitleBar: false,
   meetingMicInUse: false,
   participants: [{ id: "participant-1" }] as Array<{ id: string }>,
 }));
@@ -129,6 +130,7 @@ vi.mock("~/shared/config", () => ({
 
 vi.mock("~/shared/hooks/useWindowControlsGutter", () => ({
   useWindowControlsGutter: () => mocks.windowControlsGutter,
+  usesWindowsStyleTitleBar: () => mocks.windowsStyleTitleBar,
 }));
 
 vi.mock("~/shared/utils", async (importOriginal) => ({
@@ -173,6 +175,7 @@ import { OuterHeader } from "./index";
 
 describe("OuterHeader", () => {
   beforeEach(() => {
+    mocks.windowsStyleTitleBar = false;
     mocks.leftsidebar.expanded = true;
     mocks.leftsidebar.toggleExpanded.mockClear();
     mocks.canGoBack = false;
@@ -326,6 +329,23 @@ describe("OuterHeader", () => {
     expect(container.firstElementChild?.className).not.toContain("pl-2");
   });
 
+  it("omits the collapsed sidebar gutter with Windows-style title bars", () => {
+    mocks.leftsidebar.expanded = false;
+    mocks.windowControlsGutter = false;
+    mocks.windowsStyleTitleBar = true;
+
+    const { container } = render(
+      <OuterHeader
+        sessionId="session-1"
+        currentView={{ type: "raw" } as EditorView}
+      />,
+    );
+
+    expect(container.firstElementChild?.className).toContain("pl-2");
+    expect(container.firstElementChild?.className).not.toContain("pl-[108px]");
+    expect(container.firstElementChild?.className).not.toContain("pl-[32px]");
+  });
+
   it("does not add a title offset while the sidebar is expanded", () => {
     mocks.leftsidebar.expanded = true;
 
@@ -465,6 +485,42 @@ describe("OuterHeader", () => {
 
     expect(title.getAttribute("placeholder")).toBe("Untitled");
     expect(screen.queryByRole("button", { name: "Create brief" })).toBeNull();
+  });
+
+  it("keeps the title hidden when recording is removed while tabs are shown", () => {
+    mocks.audioExists = true;
+
+    const renderHeader = () => (
+      <OuterHeader
+        sessionId="session-1"
+        currentView={{ type: "raw" } as EditorView}
+        tab={{
+          active: true,
+          id: "session-1",
+          pinned: false,
+          slotId: "slot-1",
+          state: { autoStart: null, view: { type: "raw" } },
+          type: "sessions",
+        }}
+        viewSwitcher={
+          <div role="group" aria-label="Session note views">
+            Tabs
+          </div>
+        }
+      />
+    );
+    const { rerender } = render(renderHeader());
+
+    expect(screen.queryByRole("textbox", { name: "Session title" })).toBeNull();
+
+    mocks.audioExists = false;
+    rerender(renderHeader());
+
+    expect(
+      screen.getByRole("group", { name: "Session note views" }),
+    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Record" })).not.toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Session title" })).toBeNull();
   });
 
   it("hides the title input after the meeting is over", () => {

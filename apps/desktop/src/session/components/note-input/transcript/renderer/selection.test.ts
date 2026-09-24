@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   canMergeTranscriptEntries,
+  focusTranscriptSelection,
   getTranscriptContextSelection,
   getTranscriptMergeTarget,
   getTranscriptRangeRects,
   getTranscriptSelectionFromRange,
+  getTranscriptSelectionFromHere,
   getTranscriptSelectionFromSegment,
   isRangeCoveredBySelection,
   mergeTranscriptSelections,
@@ -16,6 +18,45 @@ afterEach(() => {
 });
 
 describe("transcript word selection", () => {
+  it("changes from the anchor to the segment end, preserving earlier words", () => {
+    const { container, words } = createReadSegment();
+    const fullRange = document.createRange();
+    fullRange.setStartBefore(words[0]);
+    fullRange.setEndAfter(words[2]);
+    const full = getTranscriptSelectionFromRange(fullRange, container)!;
+    const range = document.createRange();
+    range.selectNodeContents(words[1]);
+    const selected = getTranscriptSelectionFromRange(range, container)!;
+    const result = getTranscriptSelectionFromHere(selected, [full]);
+    expect(result?.groups[0].wordIds).toEqual(["word-2", "word-3"]);
+    expect(getTranscriptSelectionFromHere(selected, [])).toBeNull();
+  });
+
+  it("focuses and selects the chosen word after entering edit mode", () => {
+    const { container, words } = createReadSegment();
+    const range = document.createRange();
+    range.selectNodeContents(words[1]);
+    const selection = getTranscriptSelectionFromRange(range, container)!;
+    const editor = document.createElement("div");
+    editor.tabIndex = 0;
+    editor.dataset.transcriptEditor = "";
+    editor.dataset.transcriptEditWordIds = JSON.stringify([
+      "word-1",
+      "word-2",
+      "word-3",
+    ]);
+    editor.dataset.transcriptEditWordTexts = JSON.stringify([
+      "One",
+      "Two",
+      "Three",
+    ]);
+    editor.textContent = "One Two Three";
+    words[0].parentElement!.replaceWith(editor);
+    focusTranscriptSelection(selection, container);
+    expect(document.activeElement).toBe(editor);
+    expect(window.getSelection()?.toString()).toBe("Two");
+  });
+
   it("maps a native text range to stable word ids", () => {
     const { container, words } = createReadSegment();
     const range = document.createRange();
@@ -170,6 +211,65 @@ describe("transcript word selection", () => {
       ],
     });
   });
+
+  it.each([null, 0])(
+    "merges an inferred human with speaker index %s as an explicit assignment",
+    (speakerIndex) => {
+      const first = getTranscriptSelectionFromSegment({
+        transcriptId: "transcript-1",
+        offsetMs: 0,
+        segment: {
+          key: {
+            channel: "DirectMic",
+            speaker_index: speakerIndex,
+            speaker_human_id: null,
+          },
+          provisional_speaker: {
+            name: "John Jeong",
+            human_id: "john",
+            reason: "personal_microphone",
+          },
+          text: "Hello",
+          words: [
+            {
+              id: "word-1",
+              text: "Hello",
+              start_ms: 0,
+              end_ms: 100,
+              channel: "DirectMic",
+              is_final: true,
+            },
+          ],
+        },
+      })!;
+      const second = {
+        ...first,
+        groups: [{ ...first.groups[0]!, wordIds: ["word-2"] }],
+      };
+      const target = getTranscriptMergeTarget(
+        new Set(["a", "b"]),
+        ["a", "b"],
+        new Map([
+          ["a", first],
+          ["b", second],
+        ]),
+      );
+      expect(target?.groups[0]?.segmentKey.speaker_human_id).toBe("john");
+      expect(first.groups[0]?.segmentKey.speaker_human_id).toBeNull();
+
+      first.groups[0]!.segmentKey.speaker_human_id = "explicit-person";
+      expect(
+        getTranscriptMergeTarget(
+          new Set(["a", "b"]),
+          ["a", "b"],
+          new Map([
+            ["a", first],
+            ["b", second],
+          ]),
+        )?.groups[0]?.segmentKey.speaker_human_id,
+      ).toBe("explicit-person");
+    },
+  );
 
   it("allows merging only contiguous same-channel transcript entries", () => {
     const order = ["a", "b", "c"];

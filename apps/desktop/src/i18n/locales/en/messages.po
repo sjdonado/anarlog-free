@@ -25,6 +25,11 @@ msgstr "(default)"
 msgid "(Unavailable — using current default)"
 msgstr "(Unavailable — using current default)"
 
+#. placeholder {0}: reconnectRequired ? "Reconnect" : "Connect"
+#: src/settings/crm/index.tsx
+msgid "{0}"
+msgstr "{0}"
+
 #. placeholder {0}: group.sessionIds.length
 #: src/sidebar/toast/undo-delete-toast.tsx
 msgid "{0} {noteLabel} deleted"
@@ -47,8 +52,8 @@ msgstr "{0} min"
 
 #. placeholder {0}: transferTarget?.email
 #: src/settings/team/index.tsx
-msgid "{0} must accept before becoming owner. Until then, ownership and permissions stay the same. After acceptance, you become an admin and they control the workspace, including deletion."
-msgstr "{0} must accept before becoming owner. Until then, ownership and permissions stay the same. After acceptance, you become an admin and they control the workspace, including deletion."
+msgid "{0} must accept before becoming Primary owner. Until then, ownership and permissions stay the same. After acceptance, you remain an Owner and they can delete the workspace."
+msgstr "{0} must accept before becoming Primary owner. Until then, ownership and permissions stay the same. After acceptance, you remain an Owner and they can delete the workspace."
 
 #. placeholder {0}: issue.user?.login
 #: src/task/resource-view.tsx
@@ -120,11 +125,11 @@ msgstr "{primaryModifier} ↩ to send"
 msgid "{title} deleted"
 msgstr "{title} deleted"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "{trialDaysRemaining} day left"
 msgstr "{trialDaysRemaining} day left"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "{trialDaysRemaining} days left"
 msgstr "{trialDaysRemaining} days left"
 
@@ -392,10 +397,6 @@ msgstr "Add meeting decisions and follow-ups to a Notion project."
 msgid "Add members"
 msgstr "Add members"
 
-#: src/session/components/outer-header/speaker-pre-prompt.tsx
-msgid "Add names so speakers get labeled correctly in the transcript."
-msgstr "Add names so speakers get labeled correctly in the transcript."
-
 #: src/settings/dictionary/index.tsx
 msgid "Add names, jargon, or product terms to prefer"
 msgstr "Add names, jargon, or product terms to prefer"
@@ -409,12 +410,11 @@ msgid "Add organization"
 msgstr "Add organization"
 
 #: src/billing/trial-payment-reminder-dialog.tsx
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Add payment method"
 msgstr "Add payment method"
 
 #: src/contacts/new-person-form.tsx
-#: src/session/components/outer-header/speaker-pre-prompt.tsx
 msgid "Add person"
 msgstr "Add person"
 
@@ -757,10 +757,6 @@ msgstr "Authorize access in your browser, then return to Anarlog."
 msgid "Auto summary format"
 msgstr "Auto summary format"
 
-#: src/settings/general/auto-enhance.tsx
-msgid "Auto-generate summary"
-msgstr "Auto-generate summary"
-
 #: src/settings/automations/index.tsx
 msgid "Automate what happens before, during, or after meetings based on the conditions you choose."
 msgstr "Automate what happens before, during, or after meetings based on the conditions you choose."
@@ -838,7 +834,12 @@ msgstr "Best for this Mac"
 msgid "Beta"
 msgstr "Beta"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
+#: src/sidebar/settings.tsx
+msgid "Billing"
+msgstr "Billing"
+
+#: src/settings/general/billing.tsx
 msgid "Billing period"
 msgstr "Billing period"
 
@@ -862,12 +863,6 @@ msgstr "Bright canvas"
 msgid "Bring your meeting history"
 msgstr "Bring your meeting history"
 
-#. placeholder {0}: latestResult.imported
-#. placeholder {1}: latestResult.matched
-#: src/imports/screen.tsx
-msgid "Brought in {0} new meetings. {1} were already here."
-msgstr "Brought in {0} new meetings. {1} were already here."
-
 #: src/instruction/index.tsx
 msgid "Browser handoff not working? Paste the callback link instead"
 msgstr "Browser handoff not working? Paste the callback link instead"
@@ -879,6 +874,10 @@ msgstr "Build voiceprints from meeting audio so speakers you name in a transcrip
 #: src/settings/stats/insights.tsx
 msgid "Busiest day"
 msgstr "Busiest day"
+
+#: src/calendar/components/event-chip.tsx
+msgid "Busy"
+msgstr "Busy"
 
 #: src/settings/general/permissions.tsx
 #: src/sidebar/settings.tsx
@@ -910,10 +909,12 @@ msgid "Can view"
 msgstr "Can view"
 
 #: src/calendar/components/apple/permission.tsx
+#: src/folders/folder-editor.tsx
 #: src/imports/screen.tsx
 #: src/resource-sharing/library.tsx
 #: src/session-sharing/comments.tsx
 #: src/settings/ai/llm/subscriptions/connect.tsx
+#: src/settings/crm/index.tsx
 #: src/settings/dictionary/index.tsx
 #: src/settings/general/e2ee-setup.tsx
 #: src/settings/general/storage/legacy-cleanup.tsx
@@ -934,9 +935,22 @@ msgstr "Cancel bot"
 msgid "Cancel date edit"
 msgstr "Cancel date edit"
 
+#: src/settings/dictation.tsx
+msgid "Cancel dictation"
+msgstr "Cancel dictation"
+
 #: src/settings/team/index.tsx
 msgid "Cancel invitation"
 msgstr "Cancel invitation"
+
+#: src/settings/team/index.tsx
+msgid "Cancel invitation?"
+msgstr "Cancel invitation?"
+
+#. placeholder {0}: cancelInviteTarget?.email
+#: src/settings/team/index.tsx
+msgid "Cancel the invitation for {0}? They will no longer be able to join using this invitation."
+msgstr "Cancel the invitation for {0}? They will no longer be able to join using this invitation."
 
 #: src/settings/team/index.tsx
 msgid "Cancel transfer"
@@ -978,19 +992,19 @@ msgstr "Capture meeting chat in Memos"
 msgid "Capture your first conversation. Every collection starts somewhere."
 msgstr "Capture your first conversation. Every collection starts somewhere."
 
-#: src/onboarding/folder-location.tsx
-#: src/settings/general/storage/index.tsx
-msgid "Change"
-msgstr "Change"
-
 #: src/contacts/details.tsx
 #: src/contacts/organization-details.tsx
+#: src/contacts/profile-photo.tsx
 msgid "Change photo"
 msgstr "Change photo"
 
 #: src/session/components/note-input/transcript/renderer/selection-menu.tsx
 msgid "Change speaker"
 msgstr "Change speaker"
+
+#: src/session/components/note-input/transcript/renderer/selection-menu.tsx
+msgid "Change speaker from here"
+msgstr "Change speaker from here"
 
 #: src/settings/team/index.tsx
 msgid "Change workspace logo"
@@ -1017,6 +1031,7 @@ msgid "Checking connection"
 msgstr "Checking connection"
 
 #: src/settings/automations/starter-config.tsx
+#: src/settings/crm/index.tsx
 msgid "Checking connection…"
 msgstr "Checking connection…"
 
@@ -1059,8 +1074,8 @@ msgid "Choose a channel"
 msgstr "Choose a channel"
 
 #: src/settings/sync/index.tsx
-msgid "Choose a device below to replace, then this device will continue automatically."
-msgstr "Choose a device below to replace, then this device will continue automatically."
+msgid "Choose a device below to replace, or add more device slots to your plan. This device will continue automatically."
+msgstr "Choose a device below to replace, or add more device slots to your plan. This device will continue automatically."
 
 #: src/session/components/outer-header/overflow/export-modal.tsx
 msgid "Choose a file format and what to include."
@@ -1106,6 +1121,10 @@ msgstr "Choose an AI model before generating a format."
 msgid "Choose an export folder first."
 msgstr "Choose an export folder first."
 
+#: src/settings/automations/markdown-export-options.tsx
+msgid "Choose at least one section to export."
+msgstr "Choose at least one section to export."
+
 #: src/templates/template-icon-picker.tsx
 msgid "Choose custom color"
 msgstr "Choose custom color"
@@ -1122,10 +1141,6 @@ msgstr "Choose extra fields to show on each note."
 #: src/imports/screen.tsx
 msgid "Choose files"
 msgstr "Choose files"
-
-#: src/imports/screen.tsx
-msgid "Choose files exported from this app."
-msgstr "Choose files exported from this app."
 
 #: src/settings/automations/starter-config.tsx
 #: src/settings/general/storage/export-location.tsx
@@ -1160,19 +1175,11 @@ msgstr "Choose how long recordings stay on this device."
 msgid "Choose how much detail generated meeting summaries include."
 msgstr "Choose how much detail generated meeting summaries include."
 
-#: src/onboarding/folder-location.tsx
-#: src/settings/general/storage/index.tsx
-msgid "Choose storage location"
-msgstr "Choose storage location"
-
-#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
-msgid "Choose template"
-msgstr "Choose template"
-
 #: src/templates/template-icon-picker.tsx
 msgid "Choose template icon"
 msgstr "Choose template icon"
 
+#: src/settings/dictation.tsx
 #: src/settings/general/audio-settings.tsx
 msgid "Choose the microphone that captures your voice."
 msgstr "Choose the microphone that captures your voice."
@@ -1184,6 +1191,10 @@ msgstr "Choose which day begins your calendar week."
 #: src/settings/general/default-share-access.tsx
 msgid "Choose who can access notes from new meetings."
 msgstr "Choose who can access notes from new meetings."
+
+#: src/folders/folder-editor.tsx
+msgid "Choose who receives new notes created in this folder."
+msgstr "Choose who receives new notes created in this folder."
 
 #: src/settings/team/index.tsx
 msgid "Claim email domain"
@@ -1224,12 +1235,21 @@ msgstr "Clear selection"
 msgid "CLI & MCP"
 msgstr "CLI & MCP"
 
+#: src/settings/dictation.tsx
+msgid "Click here, then use your dictation shortcut."
+msgstr "Click here, then use your dictation shortcut."
+
+#: src/settings/dictation-shortcut.tsx
+msgid "Click the shortcut to record a new key combination. Press Escape to cancel."
+msgstr "Click the shortcut to record a new key combination. Press Escape to cancel."
+
 #: src/shared/ui/resource-list/preview-header.tsx
 msgid "Clone"
 msgstr "Clone"
 
 #: src/changelog/index.tsx
 #: src/main/windows-title-bar.tsx
+#: src/main/windows-window-controls.tsx
 #: src/session/components/note-input/search/bar.tsx
 #: src/shared/open-note-dialog.tsx
 msgid "Close"
@@ -1283,10 +1303,6 @@ msgstr "Cloud API URL copied"
 msgid "Cloud sync"
 msgstr "Cloud sync"
 
-#: src/settings/sync/index.tsx
-msgid "Cloud sync and {cloudStorageService} can both change the same files, which can create conflicted copies and incomplete recordings. Move your Anarlog storage location to a folder that {cloudStorageService} does not sync."
-msgstr "Cloud sync and {cloudStorageService} can both change the same files, which can create conflicted copies and incomplete recordings. Move your Anarlog storage location to a folder that {cloudStorageService} does not sync."
-
 #: src/settings/general/notification.tsx
 msgid "Cloud sync complete"
 msgstr "Cloud sync complete"
@@ -1308,6 +1324,7 @@ msgid "Collaborator"
 msgstr "Collaborator"
 
 #: src/automations/starters.tsx
+#: src/settings/automations/markdown-export-options.tsx
 msgid "Collect action items"
 msgstr "Collect action items"
 
@@ -1360,11 +1377,16 @@ msgstr "commented on"
 msgid "comments"
 msgstr "comments"
 
+#: src/crm/enrich-contact.tsx
+msgid "company"
+msgstr "company"
+
 #: src/contacts/details.tsx
+#: src/settings/general/account-profile.tsx
 msgid "Company"
 msgstr "Company"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Compare Free, Pro, Team, and Enterprise."
 msgstr "Compare Free, Pro, Team, and Enterprise."
 
@@ -1388,10 +1410,6 @@ msgstr "Completion sound"
 msgid "Composer"
 msgstr "Composer"
 
-#: src/session/components/floating/options-menu.tsx
-msgid "Configure"
-msgstr "Configure"
-
 #: src/composer/index.tsx
 msgid "Configure a chat model in Settings"
 msgstr "Configure a chat model in Settings"
@@ -1405,11 +1423,12 @@ msgstr "Configure a chat model to use the quick composer."
 msgid "Configure Providers"
 msgstr "Configure Providers"
 
-#: src/onboarding/folder-location.tsx
+#: src/folders/folder-editor.tsx
 #: src/session/components/note-input/transcript/renderer/speaker-assign.tsx
 msgid "Confirm"
 msgstr "Confirm"
 
+#: src/imports/screen.tsx
 #: src/settings/ai/llm/subscriptions/connect.tsx
 msgid "Connect"
 msgstr "Connect"
@@ -1430,9 +1449,9 @@ msgstr "Connect {0}"
 msgid "Connect {0} Calendar"
 msgstr "Connect {0} Calendar"
 
-#: src/imports/screen.tsx
-msgid "Connect & import"
-msgstr "Connect & import"
+#: src/settings/crm/index.tsx
+msgid "Connect a CRM to look up your contacts from Anarlog. Connections are managed through your Anarlog account."
+msgstr "Connect a CRM to look up your contacts from Anarlog. Connections are managed through your Anarlog account."
 
 #: src/onboarding/calendar.tsx
 #: src/onboarding/index.tsx
@@ -1447,6 +1466,11 @@ msgstr "Connect GitHub for private repos."
 msgid "Connect Google Calendar"
 msgstr "Connect Google Calendar"
 
+#: src/auth/connect-local-library-dialog.tsx
+#: src/auth/context.tsx
+msgid "Connect library"
+msgstr "Connect library"
+
 #: src/settings/automations/starter-config.tsx
 msgid "Connect Linear"
 msgstr "Connect Linear"
@@ -1455,10 +1479,9 @@ msgstr "Connect Linear"
 msgid "Connect Notion"
 msgstr "Connect Notion"
 
-#. placeholder {0}: provider.name
-#: src/imports/screen.tsx
-msgid "Connect once to bring over your {0} history and keep new meetings coming in while you switch."
-msgstr "Connect once to bring over your {0} history and keep new meetings coming in while you switch."
+#: src/crm/enrich-contact.tsx
+msgid "Connect one in Settings"
+msgstr "Connect one in Settings"
 
 #: src/onboarding/calendar.tsx
 msgid "Connect Outlook"
@@ -1478,12 +1501,17 @@ msgid "Connect your integration"
 msgstr "Connect your integration"
 
 #: src/imports/screen.tsx
-msgid "Connected · New meetings are imported automatically while Anarlog is running."
-msgstr "Connected · New meetings are imported automatically while Anarlog is running."
+#: src/settings/crm/index.tsx
+msgid "Connected"
+msgstr "Connected"
 
 #: src/settings/general/account.tsx
 msgid "Connected accounts"
 msgstr "Connected accounts"
+
+#: src/settings/crm/index.tsx
+msgid "Connected and working"
+msgstr "Connected and working"
 
 #. placeholder {0}: subscriptionProvider.displayName
 #: src/settings/ai/shared/index.tsx
@@ -1494,6 +1522,7 @@ msgstr "Connected with your {0} subscription."
 msgid "Connected with your existing subscription."
 msgstr "Connected with your existing subscription."
 
+#: src/auth/connect-local-library-dialog.tsx
 #: src/settings/sync/index.tsx
 msgid "Connecting..."
 msgstr "Connecting..."
@@ -1547,6 +1576,10 @@ msgstr "Conversations per active day"
 msgid "Conversations: {total}"
 msgstr "Conversations: {total}"
 
+#: src/settings/dictation.tsx
+msgid "Copied"
+msgstr "Copied"
+
 #: src/main/windows-title-bar.tsx
 #: src/session/components/note-input/transcript/renderer/selection-menu.tsx
 #: src/settings/ai/llm/subscriptions/connect.tsx
@@ -1562,6 +1595,10 @@ msgstr "Copy {label} URL"
 #: src/settings/developers/cli.tsx
 msgid "Copy config"
 msgstr "Copy config"
+
+#: src/settings/dictation.tsx
+msgid "Copy last dictation"
+msgstr "Copy last dictation"
 
 #: src/session-sharing/draft-panel.tsx
 #: src/session-sharing/management-panel.tsx
@@ -1593,6 +1630,10 @@ msgstr "Could not check the CLI: {0}"
 msgid "Could not clear the selected model"
 msgstr "Could not clear the selected model"
 
+#: src/auth/connect-local-library-dialog.tsx
+msgid "Could not connect this library. Your local notes are unchanged. Try again."
+msgstr "Could not connect this library. Your local notes are unchanged. Try again."
+
 #: src/settings/developers/cli.tsx
 msgid "Could not copy the MCP configuration"
 msgstr "Could not copy the MCP configuration"
@@ -1600,6 +1641,10 @@ msgstr "Could not copy the MCP configuration"
 #: src/session-sharing/management-panel.tsx
 msgid "Could not copy the share link."
 msgstr "Could not copy the share link."
+
+#: src/settings/dictation.tsx
+msgid "Could not copy the transcript. Select the text above to copy it."
+msgstr "Could not copy the transcript. Select the text above to copy it."
 
 #: src/settings/developers/clipboard.ts
 msgid "Could not copy to clipboard"
@@ -1657,13 +1702,21 @@ msgstr "Could not load your devices."
 msgid "Could not open the web copy."
 msgstr "Could not open the web copy."
 
-#: src/shared/useNewNote.ts
-msgid "Could not prepare this upload. Please try again."
-msgstr "Could not prepare this upload. Please try again."
-
 #: src/session-sharing/management-panel.tsx
 msgid "Could not publish the desktop edits. Check the latest web copy and try again."
 msgstr "Could not publish the desktop edits. Check the latest web copy and try again."
+
+#: src/crm/enrich-contact.tsx
+msgid "Could not reach the CRM"
+msgstr "Could not reach the CRM"
+
+#: src/auth/connect-local-library-dialog.tsx
+msgid "Could not read the local library"
+msgstr "Could not read the local library"
+
+#: src/auth/connect-local-library-dialog.tsx
+msgid "Could not read the local library. Close this dialog and try again."
+msgstr "Could not read the local library. Close this dialog and try again."
 
 #: src/automations/actions.ts
 msgid "Could not remove the automation"
@@ -1752,21 +1805,30 @@ msgstr "Couldn’t check availability. You can still try Save."
 msgid "Couldn't load your badges. Reopen this page to try again."
 msgstr "Couldn't load your badges. Reopen this page to try again."
 
-#: src/settings/stats/insights.tsx
+#: src/settings/stats/index.tsx
 msgid "Couldn't load your insights. Reopen this page to try again."
 msgstr "Couldn't load your insights. Reopen this page to try again."
 
-#: src/settings/stats/index.tsx
-msgid "Couldn't load your stats. Reopen this page to try again."
-msgstr "Couldn't load your stats. Reopen this page to try again."
+#: src/settings/general/account-profile.tsx
+msgid "Couldn't load your profile. Reopen this page to try again."
+msgstr "Couldn't load your profile. Reopen this page to try again."
 
 #: src/settings/general/account.tsx
 msgid "Couldn't open connected accounts. Try again."
 msgstr "Couldn't open connected accounts. Try again."
 
+#: src/settings/sync/index.tsx
+msgid "Couldn't open device add-ons. Try again."
+msgstr "Couldn't open device add-ons. Try again."
+
 #: src/settings/stats/badge-collection.tsx
 msgid "Couldn't save your new badges."
 msgstr "Couldn't save your new badges."
+
+#: src/contacts/profile-photo.tsx
+#: src/settings/general/account-profile.tsx
+msgid "Couldn't save your profile. Try again."
+msgstr "Couldn't save your profile. Try again."
 
 #: src/folders/sidebar.tsx
 #: src/settings/team/index.tsx
@@ -1846,7 +1908,13 @@ msgstr "Creating brief..."
 msgid "Crisp"
 msgstr "Crisp"
 
-#: src/settings/general/account.tsx
+#: src/crm/enrich-contact.tsx
+#: src/settings/crm/index.tsx
+#: src/sidebar/settings.tsx
+msgid "CRM"
+msgstr "CRM"
+
+#: src/settings/general/billing.tsx
 msgid "Current"
 msgstr "Current"
 
@@ -1858,6 +1926,10 @@ msgstr "Current default"
 #: src/settings/team/index.tsx
 msgid "Current domain"
 msgstr "Current domain"
+
+#: src/settings/general/billing.tsx
+msgid "Current plan"
+msgstr "Current plan"
 
 #: src/templates/template-sidebar.tsx
 msgid "Customized"
@@ -1879,6 +1951,7 @@ msgstr "Dark"
 msgid "Data"
 msgstr "Data"
 
+#: src/settings/automations/markdown-export-options.tsx
 #: src/sidebar/note-filter-menu.tsx
 msgid "Date"
 msgstr "Date"
@@ -1907,6 +1980,7 @@ msgstr "Default sharing"
 
 #: src/contacts/contact-page-header.tsx
 #: src/folders/folder-editor.tsx
+#: src/session/components/note-input/transcript/renderer/selection-menu.tsx
 #: src/session/components/outer-header/overflow/delete.tsx
 #: src/sidebar/automations.tsx
 #: src/sidebar/timeline/index.tsx
@@ -2023,14 +2097,24 @@ msgstr "Device name"
 msgid "Devices"
 msgstr "Devices"
 
+#: src/settings/dictation.tsx
+#: src/sidebar/settings.tsx
+msgid "Dictation"
+msgstr "Dictation"
+
+#: src/settings/dictation-shortcut.tsx
+msgid "Dictation shortcut"
+msgstr "Dictation shortcut"
+
+#: src/settings/dictation.tsx
+msgid "Dictation uses your microphone, transcription provider, languages, and dictionary. Temporary audio is deleted after transcription. Your last transcript stays in memory until dictation is disabled or Anarlog closes."
+msgstr "Dictation uses your microphone, transcription provider, languages, and dictionary. Temporary audio is deleted after transcription. Your last transcript stays in memory until dictation is disabled or Anarlog closes."
+
+#: src/settings/dictation.tsx
 #: src/settings/dictionary/index.tsx
 #: src/sidebar/settings.tsx
 msgid "Dictionary"
 msgstr "Dictionary"
-
-#: src/imports/screen.tsx
-msgid "Direct connection is not available yet. You can still bring your history over with files."
-msgstr "Direct connection is not available yet. You can still bring your history over with files."
 
 #: src/settings/automations/index.tsx
 msgid "Disable"
@@ -2043,6 +2127,7 @@ msgstr "Disable all notifications"
 #: src/calendar/components/oauth/provider-content.tsx
 #: src/calendar/components/sidebar.tsx
 #: src/imports/screen.tsx
+#: src/settings/crm/index.tsx
 #: src/settings/sync/index.tsx
 #: src/settings/todo/provider-content.tsx
 msgid "Disconnect"
@@ -2125,6 +2210,7 @@ msgid "Earlier versions of this note, newest first."
 msgstr "Earlier versions of this note, newest first."
 
 #: src/main/windows-title-bar.tsx
+#: src/session/components/note-input/transcript/renderer/selection-menu.tsx
 #: src/settings/dictionary/index.tsx
 #: src/sidebar/automations.tsx
 msgid "Edit"
@@ -2138,8 +2224,13 @@ msgstr "Edit date"
 msgid "Eligible for free trial"
 msgstr "Eligible for free trial"
 
+#: src/crm/enrich-contact.tsx
+msgid "email"
+msgstr "email"
+
 #: src/contacts/details.tsx
 #: src/session-sharing/delivery-panel.tsx
+#: src/settings/general/account-profile.tsx
 #: src/settings/team/index.tsx
 msgid "Email"
 msgstr "Email"
@@ -2179,6 +2270,10 @@ msgstr "Enable {0}"
 msgid "Enable Cloud API & Connectors"
 msgstr "Enable Cloud API & Connectors"
 
+#: src/settings/dictation.tsx
+msgid "Enable dictation"
+msgstr "Enable dictation"
+
 #: src/settings/automations/index.tsx
 #: src/settings/automations/workflow-builder.tsx
 #: src/sidebar/automations.tsx
@@ -2196,6 +2291,14 @@ msgstr "Enhance contact"
 #: src/session/components/outer-header/metadata/participants/chip.tsx
 msgid "Enhance contact {label}"
 msgstr "Enhance contact {label}"
+
+#: src/crm/enrich-contact.tsx
+msgid "Enrich contact from CRM"
+msgstr "Enrich contact from CRM"
+
+#: src/crm/enrich-contact.tsx
+msgid "Enrich from CRM"
+msgstr "Enrich from CRM"
 
 #: src/settings/ai/stt/select.tsx
 msgid "Enter a model identifier"
@@ -2260,10 +2363,6 @@ msgstr "Everyone in the Team"
 #: src/settings/general/default-share-access.tsx
 msgid "Everyone in the workspace"
 msgstr "Everyone in the workspace"
-
-#: src/imports/screen.tsx
-msgid "Everything is already here."
-msgstr "Everything is already here."
 
 #: src/templates/auto-format-examples-dialog.tsx
 msgid "Example summary"
@@ -2355,6 +2454,14 @@ msgstr "File each action item as an issue in the selected team."
 msgid "File format"
 msgstr "File format"
 
+#: src/settings/automations/markdown-export-options.tsx
+msgid "Filename"
+msgstr "Filename"
+
+#: src/crm/enrich-contact.tsx
+msgid "Filled {filled} from {provider}."
+msgstr "Filled {filled} from {provider}."
+
 #: src/shared/open-note-dialog.tsx
 msgid "Find a note..."
 msgstr "Find a note..."
@@ -2394,6 +2501,10 @@ msgstr "Flags"
 #: src/chat/components/toolbar-controls.tsx
 msgid "Float chat"
 msgstr "Float chat"
+
+#: src/settings/dictation-shortcut.tsx
+msgid "Fn / Globe"
+msgstr "Fn / Globe"
 
 #: src/settings/appearance/sidebar-item-fields.tsx
 #: src/sidebar/note-filter-menu.tsx
@@ -2437,7 +2548,7 @@ msgstr "For enabled notifications"
 msgid "Forever"
 msgstr "Forever"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Free"
 msgstr "Free"
 
@@ -2463,10 +2574,6 @@ msgstr "General"
 msgid "General access"
 msgstr "General access"
 
-#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
-msgid "Generate summary"
-msgstr "Generate summary"
-
 #: src/session/components/note-input/enhanced/streaming.tsx
 #: src/session/components/title-input.tsx
 msgid "Generating title..."
@@ -2476,7 +2583,12 @@ msgstr "Generating title..."
 msgid "Generating transcript..."
 msgstr "Generating transcript..."
 
+#: src/settings/sync/index.tsx
+msgid "Get more slots"
+msgstr "Get more slots"
+
 #: src/session/components/note-input/enhanced/config-error.tsx
+#: src/settings/general/billing.tsx
 msgid "Get Pro"
 msgstr "Get Pro"
 
@@ -2494,6 +2606,7 @@ msgstr "Get your attention when Anarlog finishes work in the background."
 msgid "Go back to now"
 msgstr "Go back to now"
 
+#: src/main/windows-title-bar.tsx
 #: src/sidebar/custom-sidebar-header.tsx
 msgid "Go home"
 msgstr "Go home"
@@ -2546,6 +2659,10 @@ msgstr "guest@company.com"
 #: src/settings/developers/index.tsx
 msgid "Guide"
 msgstr "Guide"
+
+#: src/settings/dictation.tsx
+msgid "Hands-free dictation"
+msgstr "Hands-free dictation"
 
 #: src/settings/general/app-settings.tsx
 msgid "Have Anarlog ready when you sign in."
@@ -2625,6 +2742,10 @@ msgstr "History"
 msgid "History {0}/{1}"
 msgstr "History {0}/{1}"
 
+#: src/settings/dictation.tsx
+msgid "Hold your shortcut while speaking, then release it to finish."
+msgstr "Hold your shortcut while speaking, then release it to finish."
+
 #: src/settings/stats/index.tsx
 msgid "Hours transcribed"
 msgstr "Hours transcribed"
@@ -2656,6 +2777,14 @@ msgstr "If Anarlog stays closed, paste the link in the sign-in window."
 #: src/onboarding/index.tsx
 msgid "Import notes and transcripts from the meeting apps you already use."
 msgstr "Import notes and transcripts from the meeting apps you already use."
+
+#. placeholder {0}: result.imported
+#. placeholder {1}: result.matched
+#. placeholder {2}: result.conflicts
+#. placeholder {3}: result.errors
+#: src/imports/screen.tsx
+msgid "Imported: {0}. Unchanged: {1}. Needs review: {2}. Failed: {3}."
+msgstr "Imported: {0}. Unchanged: {1}. Needs review: {2}. Failed: {3}."
 
 #: src/session/components/note-input/transcript/screens/empty.tsx
 msgid "Importing audio..."
@@ -2699,8 +2828,13 @@ msgid "in {weeks} weeks"
 msgstr "in {weeks} weeks"
 
 #: src/session/components/outer-header/overflow/export-modal.tsx
+#: src/settings/automations/markdown-export-options.tsx
 msgid "Include"
 msgstr "Include"
+
+#: src/settings/automations/markdown-export-options.tsx
+msgid "Include meeting ID"
+msgstr "Include meeting ID"
 
 #: src/settings/stats/index.tsx
 msgid "Includes imported transcripts. Deleted conversations are excluded."
@@ -2796,7 +2930,12 @@ msgstr "Invited by {0}"
 msgid "Invited to join"
 msgstr "Invited to join"
 
+#: src/crm/enrich-contact.tsx
+msgid "job title"
+msgstr "job title"
+
 #: src/contacts/details.tsx
+#: src/settings/general/account-profile.tsx
 msgid "Job Title"
 msgstr "Job Title"
 
@@ -2825,6 +2964,10 @@ msgstr "Join scheduled meetings"
 msgid "Joined {0}"
 msgstr "Joined {0}"
 
+#: src/settings/dictation.tsx
+msgid "Keep Anarlog running to use your shortcut in other apps."
+msgstr "Keep Anarlog running to use your shortcut in other apps."
+
 #: src/session-sharing/management-panel.tsx
 msgid "Keep desktop edits"
 msgstr "Keep desktop edits"
@@ -2849,6 +2992,10 @@ msgstr "Keep synced notes readable only on your devices."
 msgid "Keep this version"
 msgstr "Keep this version"
 
+#: src/auth/connect-local-library-dialog.tsx
+msgid "Keep using locally"
+msgstr "Keep using locally"
+
 #: src/settings/sync/index.tsx
 msgid "Keep your recovery key saved somewhere safe. You can still use it if another approved device is unavailable."
 msgstr "Keep your recovery key saved somewhere safe. You can still use it if another approved device is unavailable."
@@ -2865,6 +3012,10 @@ msgstr "Kimi Code API key"
 msgid "Language & Region"
 msgstr "Language & Region"
 
+#: src/settings/dictation.tsx
+msgid "Language & transcription"
+msgstr "Language & transcription"
+
 #: src/sidebar/toast/registry.tsx
 msgid "Language model needed"
 msgstr "Language model needed"
@@ -2874,8 +3025,14 @@ msgstr "Language model needed"
 msgid "Last delivery {0}"
 msgstr "Last delivery {0}"
 
+#: src/settings/dictation.tsx
+msgid "Last dictation"
+msgstr "Last dictation"
+
 #. placeholder {0}: lastRun.imported
+#. placeholder {0}: result.imported
 #. placeholder {1}: lastRun.matched
+#. placeholder {1}: result.matched
 #: src/imports/screen.tsx
 msgid "Last import: {0} added, {1} unchanged"
 msgstr "Last import: {0} added, {1} unchanged"
@@ -2909,13 +3066,13 @@ msgstr "Last used {0}"
 msgid "Learn how to fix this"
 msgstr "Learn how to fix this"
 
-#: src/settings/sync/index.tsx
-msgid "Learn more"
-msgstr "Learn more"
-
 #: src/settings/team/index.tsx
 msgid "Leave {workspaceName}?"
 msgstr "Leave {workspaceName}?"
+
+#: src/settings/automations/markdown-export-options.tsx
+msgid "Leave blank to use the meeting date and title."
+msgstr "Leave blank to use the meeting date and title."
 
 #: src/settings/team/index.tsx
 msgid "Leave workspace"
@@ -2932,6 +3089,10 @@ msgstr "Less"
 #: src/session-sharing/attachment-controls.tsx
 msgid "Let people with access play the recording."
 msgstr "Let people with access play the recording."
+
+#: src/auth/connect-local-library-dialog.tsx
+msgid "Library connected, but sync could not restart. Try again in sync settings."
+msgstr "Library connected, but sync could not restart. Try again in sync settings."
 
 #: src/settings/appearance/theme.tsx
 msgid "Light"
@@ -2950,12 +3111,18 @@ msgid "Linear team"
 msgstr "Linear team"
 
 #: src/contacts/details.tsx
+#: src/crm/enrich-contact.tsx
+#: src/settings/general/account-profile.tsx
 msgid "LinkedIn"
 msgstr "LinkedIn"
 
 #: src/chat/components/body/empty.tsx
 msgid "List action items."
 msgstr "List action items."
+
+#: src/settings/dictation.tsx
+msgid "Listening…"
+msgstr "Listening…"
 
 #: src/settings/stats/badge-collection.tsx
 msgid "Little steps worth keeping. Collect them at your own pace."
@@ -2964,6 +3131,10 @@ msgstr "Little steps worth keeping. Collect them at your own pace."
 #: src/settings/ai/stt/select.tsx
 msgid "Live"
 msgstr "Live"
+
+#: src/settings/dictation.tsx
+msgid "Live transcript preview"
+msgstr "Live transcript preview"
 
 #: src/settings/stats/badge-collection.tsx
 msgid "Living Library"
@@ -3019,16 +3190,13 @@ msgstr "Loading teams…"
 msgid "Loading your badges…"
 msgstr "Loading your badges…"
 
-#: src/settings/stats/insights.tsx
+#: src/settings/stats/index.tsx
 msgid "Loading your insights…"
 msgstr "Loading your insights…"
 
-#: src/settings/stats/index.tsx
-msgid "Loading your stats…"
-msgstr "Loading your stats…"
-
 #: src/changelog/index.tsx
 #: src/contacts/details.tsx
+#: src/settings/general/account-profile.tsx
 #: src/task/resource-view.tsx
 msgid "Loading..."
 msgstr "Loading..."
@@ -3067,7 +3235,7 @@ msgstr "macOS could not access your recovery key. Repair Keychain access, then r
 msgid "Main language"
 msgstr "Main language"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Manage billing"
 msgstr "Manage billing"
 
@@ -3103,12 +3271,16 @@ msgstr "Match whole word"
 msgid "Match your device"
 msgstr "Match your device"
 
+#: src/crm/enrich-contact.tsx
+msgid "Matched in {provider}; nothing new to add."
+msgstr "Matched in {provider}; nothing new to add."
+
 #: src/folders/folder-editor.tsx
 #: src/sidebar/folder-materials.tsx
 msgid "Materials"
 msgstr "Materials"
 
-#: src/main/windows-title-bar.tsx
+#: src/main/windows-window-controls.tsx
 msgid "Maximize"
 msgstr "Maximize"
 
@@ -3205,6 +3377,7 @@ msgstr "Members on a claimed email domain must sign in with SSO instead of Googl
 
 #: src/edit/tab-content.tsx
 #: src/session/components/outer-header/overflow/export-modal.tsx
+#: src/settings/automations/markdown-export-options.tsx
 msgid "Memo"
 msgstr "Memo"
 
@@ -3233,6 +3406,7 @@ msgid "Metadata"
 msgstr "Metadata"
 
 #: src/onboarding/permissions.tsx
+#: src/settings/dictation.tsx
 #: src/settings/general/audio-settings.tsx
 #: src/settings/general/permissions.tsx
 msgid "Microphone"
@@ -3258,7 +3432,7 @@ msgstr "Migration needs attention"
 msgid "Migration status unavailable"
 msgstr "Migration status unavailable"
 
-#: src/main/windows-title-bar.tsx
+#: src/main/windows-window-controls.tsx
 msgid "Minimize"
 msgstr "Minimize"
 
@@ -3279,7 +3453,7 @@ msgstr "Model is thinking..."
 msgid "Monday"
 msgstr "Monday"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Monthly · ${monthlyPrice}/mo"
 msgstr "Monthly · ${monthlyPrice}/mo"
 
@@ -3287,8 +3461,8 @@ msgstr "Monthly · ${monthlyPrice}/mo"
 msgid "More"
 msgstr "More"
 
+#: src/imports/screen.tsx
 #: src/session-sharing/delivery-panel.tsx
-#: src/session/components/floating/options-menu.tsx
 msgid "More options"
 msgstr "More options"
 
@@ -3308,8 +3482,13 @@ msgstr "Move up"
 msgid "My automations"
 msgstr "My automations"
 
+#: src/crm/enrich-contact.tsx
+msgid "name"
+msgstr "name"
+
 #: src/contacts/details.tsx
 #: src/contacts/organization-details.tsx
+#: src/settings/general/account-profile.tsx
 #: src/settings/team/index.tsx
 msgid "Name"
 msgstr "Name"
@@ -3330,10 +3509,19 @@ msgstr "New chat"
 msgid "New folder"
 msgstr "New folder"
 
+#: src/imports/screen.tsx
+msgid "New meetings are imported automatically while Anarlog is running."
+msgstr "New meetings are imported automatically while Anarlog is running."
+
 #: src/main/empty.tsx
 #: src/main/windows-title-bar.tsx
 msgid "New Note"
 msgstr "New Note"
+
+#. placeholder {0}: workspaceConfirmation?.name
+#: src/folders/folder-editor.tsx
+msgid "New notes in this folder will sync to everyone in {0}. Notes already in the folder are not moved."
+msgstr "New notes in this folder will sync to everyone in {0}. Notes already in the folder are not moved."
 
 #: src/session/components/note-input/raw.tsx
 msgid "New template"
@@ -3398,6 +3586,14 @@ msgstr "No community templates available"
 msgid "No content."
 msgstr "No content."
 
+#: src/crm/enrich-contact.tsx
+msgid "No CRM connected."
+msgstr "No CRM connected."
+
+#: src/settings/crm/index.tsx
+msgid "No CRM integrations are available yet."
+msgstr "No CRM integrations are available yet."
+
 #: src/task/resource-view.tsx
 msgid "No description provided."
 msgstr "No description provided."
@@ -3446,6 +3642,10 @@ msgstr "No folders yet. Create one to group notes and materials."
 msgid "No icons found"
 msgstr "No icons found"
 
+#: src/imports/screen.tsx
+msgid "No imports yet."
+msgstr "No imports yet."
+
 #: src/sidebar/timeline/index.tsx
 msgid "No items today"
 msgstr "No items today"
@@ -3453,6 +3653,10 @@ msgstr "No items today"
 #: src/settings/dictionary/index.tsx
 msgid "No match"
 msgstr "No match"
+
+#: src/crm/enrich-contact.tsx
+msgid "No matching contact found in {providers}."
+msgstr "No matching contact found in {providers}."
 
 #: src/settings/general/main-language.tsx
 #: src/settings/general/spoken-languages.tsx
@@ -3492,7 +3696,9 @@ msgid "No people in this organization"
 msgstr "No people in this organization"
 
 #: src/settings/ai/llm/configure.tsx
+#: src/settings/ai/llm/select.tsx
 #: src/settings/ai/stt/configure.tsx
+#: src/settings/ai/stt/select.tsx
 msgid "No providers found."
 msgstr "No providers found."
 
@@ -3523,10 +3729,6 @@ msgstr "No single busiest day"
 msgid "No speech detected"
 msgstr "No speech detected"
 
-#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
-msgid "No summary yet. Generate one from the transcript whenever you're ready, optionally with a different template."
-msgstr "No summary yet. Generate one from the transcript whenever you're ready, optionally with a different template."
-
 #: src/settings/sync/index.tsx
 msgid "No sync activity yet."
 msgstr "No sync activity yet."
@@ -3550,6 +3752,10 @@ msgstr "No upcoming bots."
 #: src/settings/stats/insights.tsx
 msgid "Not available"
 msgstr "Not available"
+
+#: src/settings/crm/index.tsx
+msgid "Not connected"
+msgstr "Not connected"
 
 #: src/settings/developers/cli.tsx
 msgid "Not installed"
@@ -3588,6 +3794,7 @@ msgid "notes"
 msgstr "notes"
 
 #: src/contacts/details.tsx
+#: src/settings/general/account-profile.tsx
 msgid "Notes"
 msgstr "Notes"
 
@@ -3600,12 +3807,6 @@ msgstr "Notes list"
 #: src/sidebar/folder-materials.tsx
 msgid "Notes stay in All notes. Materials in this folder will be deleted."
 msgstr "Notes stay in All notes. This folder, its nested folders, and all their materials will be deleted."
-
-#. placeholder {0}: latestResult.conflicts
-#. placeholder {1}: latestResult.errors
-#: src/imports/screen.tsx
-msgid "Nothing new was imported. {0} meetings need review and {1} could not be imported."
-msgstr "Nothing new was imported. {0} meetings need review and {1} could not be imported."
 
 #: src/settings/general/index.tsx
 #: src/sidebar/settings.tsx
@@ -3639,14 +3840,19 @@ msgstr "Older files that differ from your current data were kept as recovery cop
 msgid "Oldest"
 msgstr "Oldest"
 
+#: src/settings/dictation.tsx
+msgid "On Wayland, approve the shortcuts in your desktop's prompt. Use Control + Alt + Escape to cancel. On X11, press Escape to cancel. The target app must expose an editable accessibility field."
+msgstr "On Wayland, approve the shortcuts in your desktop's prompt. Use Control + Alt + Escape to cancel. On X11, press Escape to cancel. The target app must expose an editable accessibility field."
+
 #: src/session/components/note-input/enhanced/streaming.tsx
 msgid "On-device models can take a few minutes to warm up before text appears."
 msgstr "On-device models can take a few minutes to warm up before text appears."
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "On-device transcription, recordings, and your own keys."
 msgstr "On-device transcription, recordings, and your own keys."
 
+#: src/folders/folder-editor.tsx
 #: src/settings/general/default-share-access.tsx
 msgid "Only me"
 msgstr "Only me"
@@ -3723,6 +3929,10 @@ msgstr "Open in right panel"
 msgid "Open on GitHub"
 msgstr "Open on GitHub"
 
+#: src/crm/enrich-contact.tsx
+msgid "Open record"
+msgstr "Open record"
+
 #: src/settings/todo/github.tsx
 msgid "Open repository on GitHub"
 msgstr "Open repository on GitHub"
@@ -3732,7 +3942,7 @@ msgid "Open Settings"
 msgstr "Open Settings"
 
 #: src/resource-sharing/share-dialog.tsx
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Open Teams"
 msgstr "Open Teams"
 
@@ -3841,10 +4051,6 @@ msgstr "Paste the browser URL here if the browser button did not reopen Anarlog.
 msgid "Paste the localhost redirect URL"
 msgstr "Paste the localhost redirect URL"
 
-#: src/settings/stats/insights.tsx
-msgid "Patterns in your captured conversations."
-msgstr "Patterns in your captured conversations."
-
 #: src/settings/developers/webhooks.tsx
 msgid "Pause"
 msgstr "Pause"
@@ -3887,6 +4093,7 @@ msgstr "Permission for {label}"
 msgid "permission panel."
 msgstr "permission panel."
 
+#: src/settings/dictation.tsx
 #: src/settings/general/index.tsx
 #: src/settings/team/index.tsx
 #: src/sidebar/settings.tsx
@@ -3902,7 +4109,12 @@ msgstr "Permissions for {0}"
 msgid "Permissions granted"
 msgstr "Permissions granted"
 
+#: src/crm/enrich-contact.tsx
+msgid "phone"
+msgstr "phone"
+
 #: src/contacts/details.tsx
+#: src/settings/general/account-profile.tsx
 msgid "Phone"
 msgstr "Phone"
 
@@ -3910,11 +4122,11 @@ msgstr "Phone"
 msgid "Pin"
 msgstr "Pin"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Plan & Billing"
 msgstr "Plan & Billing"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Plans"
 msgstr "Plans"
 
@@ -3958,6 +4170,22 @@ msgstr "Prepare for events with a 5-minute reminder."
 msgid "Preparing transcript..."
 msgstr "Preparing transcript..."
 
+#: src/settings/dictation-shortcut.tsx
+msgid "Preparing…"
+msgstr "Preparing…"
+
+#: src/settings/dictation.tsx
+msgid "Press Escape to cancel. Dictation stops after five minutes and pauses while Anarlog records a meeting."
+msgstr "Press Escape to cancel. Dictation stops after five minutes and pauses while Anarlog records a meeting."
+
+#: src/settings/dictation-shortcut.tsx
+msgid "Press shortcut…"
+msgstr "Press shortcut…"
+
+#: src/settings/dictation.tsx
+msgid "Press your shortcut to start, then press it again to finish."
+msgstr "Press your shortcut to start, then press it again to finish."
+
 #: src/settings/general/notification.tsx
 msgid "Prevent selected apps from triggering meeting detection."
 msgstr "Prevent selected apps from triggering meeting detection."
@@ -3970,6 +4198,10 @@ msgstr "Preview"
 #: src/session/components/note-input/search/bar.tsx
 msgid "Previous match"
 msgstr "Previous match"
+
+#: src/settings/team/index.tsx
+msgid "Primary owner"
+msgstr "Primary owner"
 
 #: src/settings/general/app-settings.tsx
 msgid "Privacy"
@@ -3987,7 +4219,7 @@ msgstr "Pro features available"
 msgid "Pro for every member, shared workspaces, roles, and centralized billing. $20 per person monthly or $200 yearly."
 msgstr "Pro for every member, shared workspaces, roles, and centralized billing. $20 per person monthly or $200 yearly."
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Pro trial"
 msgstr "Pro trial"
 
@@ -4026,6 +4258,10 @@ msgstr "Read meeting controls and visible chat."
 #: src/settings/general/notification.tsx
 msgid "Ready"
 msgstr "Ready"
+
+#: src/settings/dictation.tsx
+msgid "Ready to dictate"
+msgstr "Ready to dictate"
 
 #: src/onboarding/index.tsx
 msgid "Ready to go"
@@ -4075,6 +4311,7 @@ msgid "Reconnect Notion"
 msgstr "Reconnect Notion"
 
 #: src/calendar/components/oauth/status.tsx
+#: src/settings/crm/index.tsx
 #: src/settings/todo/provider-content.tsx
 msgid "Reconnect required"
 msgstr "Reconnect required"
@@ -4113,7 +4350,7 @@ msgstr "Recording status prompts"
 msgid "Redo"
 msgstr "Redo"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Refresh billing status"
 msgstr "Refresh billing status"
 
@@ -4165,6 +4402,11 @@ msgstr "Remove"
 msgid "Remove {0}"
 msgstr "Remove {0}"
 
+#. placeholder {0}: removeTarget?.email
+#: src/settings/team/index.tsx
+msgid "Remove {0} from {workspaceName}? They will lose access to this workspace."
+msgstr "Remove {0} from {workspaceName}? They will lose access to this workspace."
+
 #: src/settings/dictionary/index.tsx
 msgid "Remove {term}"
 msgstr "Remove {term}"
@@ -4182,7 +4424,12 @@ msgstr "Remove example {0}"
 msgid "Remove member"
 msgstr "Remove member"
 
+#: src/settings/team/index.tsx
+msgid "Remove member?"
+msgstr "Remove member?"
+
 #: src/contacts/contact-page-header.tsx
+#: src/contacts/profile-photo.tsx
 msgid "Remove photo"
 msgstr "Remove photo"
 
@@ -4341,7 +4588,7 @@ msgstr "Restart App"
 msgid "Restarting…"
 msgstr "Restarting…"
 
-#: src/main/windows-title-bar.tsx
+#: src/main/windows-window-controls.tsx
 #: src/session/components/version-history-dialog.tsx
 msgid "Restore"
 msgstr "Restore"
@@ -4350,7 +4597,7 @@ msgstr "Restore"
 msgid "Restoring cloud sync..."
 msgstr "Restoring cloud sync..."
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Resume"
 msgstr "Resume"
 
@@ -4359,12 +4606,18 @@ msgid "Retention (days)"
 msgstr "Retention (days)"
 
 #: src/chat/components/message/error.tsx
+#: src/contacts/profile-photo.tsx
 #: src/session/components/note-input/enhanced/enhance-error.tsx
+#: src/settings/general/account-profile.tsx
 #: src/settings/general/storage/legacy-cleanup.tsx
 #: src/settings/sync/index.tsx
 #: src/sidebar/toast/registry.tsx
 msgid "Retry"
 msgstr "Retry"
+
+#: src/settings/dictation.tsx
+msgid "Retry setup"
+msgstr "Retry setup"
 
 #: src/session/components/pending-proposals-banner.tsx
 msgid "Review memo"
@@ -4381,6 +4634,10 @@ msgstr "Review transfer"
 #: src/settings/developers/api-key-row.tsx
 msgid "Revoke"
 msgstr "Revoke"
+
+#: src/settings/dictation-shortcut.tsx
+msgid "Right Command"
+msgstr "Right Command"
 
 #: src/settings/ai/shared/index.tsx
 #: src/settings/ai/stt/select.tsx
@@ -4437,9 +4694,18 @@ msgstr "Save this key in a password manager. New devices can usually be approved
 msgid "Save visible chat from supported meetings using Accessibility."
 msgstr "Save visible chat from supported meetings using Accessibility."
 
+#: src/settings/general/account-profile.tsx
+msgid "Saved"
+msgstr "Saved"
+
 #: src/settings/sync/index.tsx
 msgid "Saved locally"
 msgstr "Saved locally"
+
+#: src/contacts/profile-photo.tsx
+#: src/settings/general/account-profile.tsx
+msgid "Saving..."
+msgstr "Saving..."
 
 #: src/settings/team/index.tsx
 msgid "SCIM bearer token"
@@ -4652,6 +4918,7 @@ msgid "Session note views"
 msgstr "Session note views"
 
 #: src/session/components/title-input.tsx
+#: src/settings/automations/markdown-export-options.tsx
 msgid "Session title"
 msgstr "Session title"
 
@@ -4675,6 +4942,10 @@ msgstr "Set up AI summaries"
 #: src/settings/sync/index.tsx
 msgid "Set up your recovery key to start encrypted cloud sync."
 msgstr "Set up your recovery key to start encrypted cloud sync."
+
+#: src/settings/dictation.tsx
+msgid "Setting up dictation…"
+msgstr "Setting up dictation…"
 
 #: src/settings/sync/index.tsx
 msgid "Setting up encrypted cloud sync."
@@ -4721,6 +4992,10 @@ msgstr "Share notes with others"
 #: src/resource-sharing/share-dialog.tsx
 msgid "Share one item with a guest, or add it to a Team for everyone."
 msgstr "Share one item with a guest, or add it to a Team for everyone."
+
+#: src/folders/folder-editor.tsx
+msgid "Share this folder?"
+msgstr "Share this folder?"
 
 #: src/settings/general/app-settings.tsx
 msgid "Share usage data"
@@ -4814,6 +5089,10 @@ msgstr "Show in Finder"
 msgid "Show in folder"
 msgstr "Show in folder"
 
+#: src/settings/appearance/time-format.tsx
+msgid "Show meeting times as 14:00 instead of 2:00 PM."
+msgstr "Show meeting times as 14:00 instead of 2:00 PM."
+
 #: src/main/windows-title-bar.tsx
 msgid "Show sidebar"
 msgstr "Show sidebar"
@@ -4854,6 +5133,10 @@ msgstr "Show when a transcript is ready."
 msgid "Show when initial cloud sync finishes."
 msgstr "Show when initial cloud sync finishes."
 
+#: src/settings/dictation.tsx
+msgid "Show words in the floating panel as you speak. Uses a live connection to your selected transcription provider when supported. Text is inserted when you finish."
+msgstr "Show words in the floating panel as you speak. Uses a live connection to your selected transcription provider when supported. Text is inserted when you finish."
+
 #: src/resource-sharing/share-dialog.tsx
 #: src/session-sharing/index.tsx
 #: src/session/components/note-input/enhanced/enhance-error.tsx
@@ -4880,6 +5163,7 @@ msgid "Sign in to add this folder"
 msgstr "Sign in to add this folder"
 
 #: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Sign in to Anarlog"
 msgstr "Sign in to Anarlog"
 
@@ -4892,6 +5176,10 @@ msgstr "Sign in to connect"
 #: src/settings/todo/provider-content.tsx
 msgid "Sign in to connect {0}"
 msgstr "Sign in to connect {0}"
+
+#: src/settings/crm/index.tsx
+msgid "Sign in to connect a CRM."
+msgstr "Sign in to connect a CRM."
 
 #: src/calendar/components/oauth/provider-content.tsx
 msgid "Sign in to connect your calendar"
@@ -4992,7 +5280,6 @@ msgid "Skill installed"
 msgstr "Skill installed"
 
 #: src/onboarding/shared.tsx
-#: src/session/components/outer-header/speaker-pre-prompt.tsx
 msgid "Skip"
 msgstr "Skip"
 
@@ -5024,6 +5311,7 @@ msgstr "Smileys & People"
 msgid "Software Engineer"
 msgstr "Software Engineer"
 
+#: src/session/components/note-input/transcript/renderer/selection-menu.tsx
 #: src/shared/control.tsx
 msgid "Something went wrong"
 msgstr "Something went wrong"
@@ -5049,6 +5337,10 @@ msgstr "Sound"
 msgid "Sparkle"
 msgstr "Sparkle"
 
+#: src/settings/dictation.tsx
+msgid "Speak into the focused text field in your apps. Your transcript appears when you finish."
+msgstr "Speak into the focused text field in your apps. Your transcript appears when you finish."
+
 #: src/settings/general/storage/legacy-cleanup.tsx
 msgid "SQLite migration verification is incomplete"
 msgstr "SQLite migration verification is incomplete"
@@ -5065,7 +5357,10 @@ msgstr "Start a Pro trial or add your own LLM API key to generate a summary from
 msgid "Start Anarlog at login"
 msgstr "Start Anarlog at login"
 
-#: src/auth/context.tsx
+#: src/settings/general/billing.tsx
+msgid "Start free trial"
+msgstr "Start free trial"
+
 #: src/auth/start-fresh-dialog.tsx
 msgid "Start fresh"
 msgstr "Start fresh"
@@ -5077,10 +5372,6 @@ msgstr "Start fresh on this device?"
 #: src/settings/general/meeting-settings.tsx
 msgid "Start listening when a scheduled meeting begins."
 msgstr "Start listening when a scheduled meeting begins."
-
-#: src/session/components/outer-header/speaker-pre-prompt.tsx
-msgid "Start recording"
-msgstr "Start recording"
 
 #: src/main/empty.tsx
 msgid "Start Recording"
@@ -5122,6 +5413,10 @@ msgstr "Starting in {minutesUntil} minutes"
 msgid "Starting in 1 minute"
 msgstr "Starting in 1 minute"
 
+#: src/settings/dictation.tsx
+msgid "Starting microphone…"
+msgstr "Starting microphone…"
+
 #: src/sidebar/toast/registry.tsx
 msgid "Starting transcription..."
 msgstr "Starting transcription..."
@@ -5137,10 +5432,6 @@ msgstr "Starting your trial..."
 #: src/chat/components/input/index.tsx
 msgid "Starting…"
 msgstr "Starting…"
-
-#: src/sidebar/settings.tsx
-msgid "Stats"
-msgstr "Stats"
 
 #: src/settings/general/app-settings.tsx
 msgid "Stay current with updates installed the next time Anarlog opens."
@@ -5188,18 +5479,9 @@ msgstr "Stop voice input"
 msgid "Stop when meeting ends"
 msgstr "Stop when meeting ends"
 
-#: src/onboarding/index.tsx
 #: src/settings/general/storage/index.tsx
 msgid "Storage"
 msgstr "Storage"
-
-#: src/onboarding/index.tsx
-msgid "Storage configured"
-msgstr "Storage configured"
-
-#: src/onboarding/folder-location.tsx
-msgid "Storage Updated"
-msgstr "Storage Updated"
 
 #: src/settings/stats/badge-collection.tsx
 msgid "Story Collector"
@@ -5232,6 +5514,7 @@ msgstr "Summaries"
 #: src/contacts/details.tsx
 #: src/edit/tab-content.tsx
 #: src/session/components/outer-header/overflow/export-modal.tsx
+#: src/settings/automations/markdown-export-options.tsx
 msgid "Summary"
 msgstr "Summary"
 
@@ -5263,6 +5546,10 @@ msgstr "Summary ready"
 #: src/settings/general/week-start.tsx
 msgid "Sunday"
 msgstr "Sunday"
+
+#: src/settings/general/billing.tsx
+msgid "Switch to Pro"
+msgstr "Switch to Pro"
 
 #: src/templates/template-icon-picker.tsx
 msgid "Symbols"
@@ -5302,6 +5589,10 @@ msgstr "Sync paused"
 msgid "Sync status unavailable"
 msgstr "Sync status unavailable"
 
+#: src/auth/connect-local-library-dialog.tsx
+msgid "Sync this local library with {email}?"
+msgstr "Sync this local library with {email}?"
+
 #: src/settings/general/account.tsx
 msgid "Sync your changes before signing out."
 msgstr "Sync your changes before signing out."
@@ -5340,7 +5631,7 @@ msgstr "Take the enhanced note with decisions and action items."
 msgid "Take the enhanced note with decisions and follow-ups."
 msgstr "Take the enhanced note with decisions and follow-ups."
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Talk to sales"
 msgstr "Talk to sales"
 
@@ -5351,6 +5642,14 @@ msgstr "Teach coding agents when and how to use the Anarlog CLI and MCP"
 #: src/resource-sharing/share-dialog.tsx
 msgid "Team"
 msgstr "Team"
+
+#: src/folders/folder-editor.tsx
+msgid "Team folder"
+msgstr "Team folder"
+
+#: src/folders/folder-editor.tsx
+msgid "Team folder workspace"
+msgstr "Team folder workspace"
 
 #: src/resource-sharing/share-dialog.tsx
 msgid "Team library"
@@ -5388,6 +5687,7 @@ msgid "Templates"
 msgstr "Templates"
 
 #: src/settings/automations/index.tsx
+#: src/settings/crm/index.tsx
 #: src/settings/developers/webhooks.tsx
 msgid "Test"
 msgstr "Test"
@@ -5406,10 +5706,6 @@ msgstr "Test failed ({0})"
 msgid "Test runs are not available yet."
 msgstr "Test runs are not available yet."
 
-#: src/onboarding/folder-location.tsx
-msgid "The app will restart after onboarding to apply your storage changes"
-msgstr "The app will restart after onboarding to apply your storage changes"
-
 #: src/shared-notes/index.tsx
 msgid "The link may have expired or its access may have changed."
 msgstr "The link may have expired or its access may have changed."
@@ -5417,10 +5713,6 @@ msgstr "The link may have expired or its access may have changed."
 #: src/shared-notes/index.tsx
 msgid "The note may have been unshared or moved out of a workspace you can access."
 msgstr "The note may have been unshared or moved out of a workspace you can access."
-
-#: src/auth/context.tsx
-msgid "The notes on this device are linked to another Anarlog account. Sign in with the account previously used here, or start fresh on this device."
-msgstr "The notes on this device are linked to another Anarlog account. Sign in with the account previously used here, or start fresh on this device."
 
 #: src/auth/start-fresh-dialog.tsx
 msgid "The notes on this device belong to another Anarlog account. Starting fresh sets them aside as a backup file and restarts Anarlog with an empty workspace for the account you signed in with. Nothing from the old notes is uploaded."
@@ -5537,10 +5829,6 @@ msgstr "Today"
 msgid "Tomorrow"
 msgstr "Tomorrow"
 
-#: src/shared/useNewNote.ts
-msgid "Too many uploads are waiting. Open an existing upload and try again."
-msgstr "Too many uploads are waiting. Open an existing upload and try again."
-
 #: src/settings/general/spoken-languages.tsx
 msgid "Transcribe meetings that use more than one language."
 msgstr "Transcribe meetings that use more than one language."
@@ -5550,11 +5838,13 @@ msgid "Transcribing voice input"
 msgstr "Transcribing voice input"
 
 #: src/chat/components/input/index.tsx
+#: src/settings/dictation.tsx
 msgid "Transcribing…"
 msgstr "Transcribing…"
 
 #: src/session/components/note-input/header-transcript.tsx
 #: src/session/components/outer-header/overflow/export-modal.tsx
+#: src/settings/automations/markdown-export-options.tsx
 msgid "Transcript"
 msgstr "Transcript"
 
@@ -5581,11 +5871,15 @@ msgstr "Transcription provider needed"
 msgid "Transcription unavailable"
 msgstr "Transcription unavailable"
 
+#: src/settings/team/index.tsx
+msgid "Transfer primary ownership before changing your role."
+msgstr "Transfer primary ownership before changing your role."
+
 #: src/templates/template-icon-picker.tsx
 msgid "Travel & Places"
 msgstr "Travel & Places"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Trial"
 msgstr "Trial"
 
@@ -5606,6 +5900,10 @@ msgstr "Trigger"
 #: src/settings/team/index.tsx
 msgid "Try again"
 msgstr "Try again"
+
+#: src/settings/dictation.tsx
+msgid "Try dictation"
+msgstr "Try dictation"
 
 #: src/chat/components/input/use-dictation.ts
 msgid "Try speaking a little closer to the microphone."
@@ -5737,6 +6035,10 @@ msgstr "Update"
 msgid "Update project notes in Notion"
 msgstr "Update project notes in Notion"
 
+#: src/settings/general/account-profile.tsx
+msgid "Update your personal contact card. Your sign-in email is managed separately."
+msgstr "Update your personal contact card. Your sign-in email is managed separately."
+
 #: src/session-sharing/access-management.tsx
 msgid "Updating access"
 msgstr "Updating access"
@@ -5774,29 +6076,19 @@ msgstr "Upgrade to Pro to use this provider."
 msgid "Upgrade to use"
 msgstr "Upgrade to use"
 
-#: src/session/components/floating/options-menu.tsx
 #: src/session/components/note-input/transcript/screens/empty.tsx
 #: src/session/components/outer-header/overflow/index.tsx
 msgid "Upload audio"
 msgstr "Upload audio"
 
-#: src/shared/useNewNote.ts
-msgid "Upload Audio"
-msgstr "Upload Audio"
-
 #: src/session/components/note-input/transcript/screens/empty.tsx
 msgid "Upload audio or a transcript file to populate this note."
 msgstr "Upload audio or a transcript file to populate this note."
 
-#: src/session/components/floating/options-menu.tsx
 #: src/session/components/note-input/transcript/screens/empty.tsx
 #: src/session/components/outer-header/overflow/index.tsx
 msgid "Upload transcript"
 msgstr "Upload transcript"
-
-#: src/shared/useNewNote.ts
-msgid "Upload Transcript"
-msgstr "Upload Transcript"
 
 #: src/settings/developers/cloud-api.tsx
 msgid "Uploads meeting content for remote access while Anarlog is closed."
@@ -5805,6 +6097,10 @@ msgstr "Uploads meeting content for remote access while Anarlog is closed."
 #: src/settings/team/index.tsx
 msgid "Usage"
 msgstr "Usage"
+
+#: src/settings/appearance/time-format.tsx
+msgid "Use 24-hour time"
+msgstr "Use 24-hour time"
 
 #: src/settings/team/index.tsx
 msgid "Use 3–63 lowercase letters, numbers, or hyphens."
@@ -5961,26 +6257,13 @@ msgstr "What were the key decisions that have been made?"
 msgid "What's new in {version}?"
 msgstr "What's new in {version}?"
 
-#: src/settings/general/auto-enhance.tsx
-msgid "When off, transcripts stay as-is until you generate the summary manually."
-msgstr "When off, transcripts stay as-is until you generate the summary manually."
-
 #: src/settings/automations/workflow-builder.tsx
 msgid "When this happens"
 msgstr "When this happens"
 
-#: src/onboarding/index.tsx
-#: src/settings/general/storage/index.tsx
-msgid "Where your notes and recordings are stored"
-msgstr "Where your notes and recordings are stored"
-
 #: src/settings/ai/stt/local-file-model.tsx
 msgid "whisper.cpp models"
 msgstr "whisper.cpp models"
-
-#: src/session/components/outer-header/speaker-pre-prompt.tsx
-msgid "Who's in this meeting?"
-msgstr "Who's in this meeting?"
 
 #: src/task/tab-content.tsx
 msgid "Work on this task"
@@ -6010,11 +6293,11 @@ msgstr "Workspace subdomain"
 msgid "Write to a folder"
 msgstr "Write to a folder"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Yearly · ${yearlyPrice}/yr"
 msgstr "Yearly · ${yearlyPrice}/yr"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Yearly · ${yearlyPrice}/yr (save ${yearlySavings})"
 msgstr "Yearly · ${yearlyPrice}/yr (save ${yearlySavings})"
 
@@ -6044,8 +6327,8 @@ msgid "You have an active plan"
 msgstr "You have an active plan"
 
 #: src/settings/team/index.tsx
-msgid "You will become the owner of {workspaceName}, with control over its members, billing, and deletion. The current owner will become an admin."
-msgstr "You will become the owner of {workspaceName}, with control over its members, billing, and deletion. The current owner will become an admin."
+msgid "You will become the Primary owner of {workspaceName}, with control over its members, billing, and deletion. The current Primary owner will remain an Owner."
+msgstr "You will become the Primary owner of {workspaceName}, with control over its members, billing, and deletion. The current Primary owner will remain an Owner."
 
 #: src/settings/general/account.tsx
 msgid "You'll need to sign in again to use cloud sync and account features."
@@ -6055,7 +6338,7 @@ msgstr "You'll need to sign in again to use cloud sync and account features."
 msgid "You're on a Pro trial"
 msgstr "You're on a Pro trial"
 
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "You're on the <0>{planLabel}</0> plan"
 msgstr "You're on the <0>{planLabel}</0> plan"
 
@@ -6088,10 +6371,6 @@ msgstr "Your busiest weekdays are tied at {peakCount} conversations each in the 
 msgid "Your comment couldn’t be added. Try again."
 msgstr "Your comment couldn’t be added. Try again."
 
-#: src/settings/stats/index.tsx
-msgid "Your conversation history."
-msgstr "Your conversation history."
-
 #: src/settings/stats/insights.tsx
 msgid "Your conversation patterns"
 msgstr "Your conversation patterns"
@@ -6100,9 +6379,17 @@ msgstr "Your conversation patterns"
 msgid "Your dictionary is empty"
 msgstr "Your dictionary is empty"
 
-#: src/settings/stats/insights.tsx
+#: src/settings/general/account-profile.tsx
+msgid "Your info"
+msgstr "Your info"
+
+#: src/settings/stats/index.tsx
 msgid "Your insights"
 msgstr "Your insights"
+
+#: src/auth/context.tsx
+msgid "Your local notes are available. Connect this library to sync with your current account."
+msgstr "Your local notes are available. Connect this library to sync with your current account."
 
 #: src/billing/trial-ended-dialog.tsx
 msgid "Your notes and recordings are safe. Free local transcription still works. Upgrade anytime to keep Pro features."
@@ -6124,6 +6411,10 @@ msgstr "Your notes remain available locally. Anarlog will keep retrying."
 msgid "Your notes remain available locally. Try again in a moment."
 msgstr "Your notes remain available locally. Try again in a moment."
 
+#: src/auth/connect-local-library-dialog.tsx
+msgid "Your personal notes and recordings stay on this device. Sync will connect them to this account and bring in its existing notes. Copies already in your previous account remain there. Team and shared notes stay with their workspace. Reconnect integrations for this account. After connecting, this library requires an app version that supports account switching."
+msgstr "Your personal notes and recordings stay on this device. Sync will connect them to this account and bring in its existing notes. Copies already in your previous account remain there. Team and shared notes stay with their workspace. Reconnect integrations for this account. After connecting, this library requires an app version that supports account switching."
+
 #: src/auth/cloudsync.ts
 msgid "Your plan’s sync device limit is reached. Remove another device to sync here."
 msgstr "Your plan’s sync device limit is reached. Remove another device to sync here."
@@ -6141,7 +6432,7 @@ msgid "Your Pro trial ends in 1 day"
 msgstr "Your Pro trial ends in 1 day"
 
 #: src/billing/trial-ended-dialog.tsx
-#: src/settings/general/account.tsx
+#: src/settings/general/billing.tsx
 msgid "Your Pro trial has ended"
 msgstr "Your Pro trial has ended"
 
@@ -6152,14 +6443,6 @@ msgstr "Your Pro trial just started"
 #: src/settings/general/e2ee-setup.tsx
 msgid "Your recovery key encrypts synced notes before they leave this device. Anarlog cannot read or recover it."
 msgstr "Your recovery key encrypts synced notes before they leave this device. Anarlog cannot read or recover it."
-
-#: src/settings/stats/index.tsx
-msgid "Your stats"
-msgstr "Your stats"
-
-#: src/settings/sync/index.tsx
-msgid "Your storage location is inside {cloudStorageService}"
-msgstr "Your storage location is inside {cloudStorageService}"
 
 #: src/services/enhancer/summary-notification.ts
 msgid "Your summary is ready."

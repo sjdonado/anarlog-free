@@ -126,11 +126,10 @@ export async function deleteProcessedAudioForRetention(
     return false;
   }
 
-  if (!(await sessionAudioIsProcessed(sessionId))) {
-    return false;
-  }
-
   try {
+    if (!(await sessionAudioIsProcessed(sessionId))) {
+      return false;
+    }
     return await deleteWithRetentionLifecycle(sessionId, () =>
       deleteLocalSessionAudio(sessionId, () => isSessionAudioIdle(sessionId)),
     );

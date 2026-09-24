@@ -40,6 +40,7 @@ describe("STT providers", () => {
       "together",
       "xai",
       "smallestai",
+      "wisprflow",
       "nari",
       "pyannote",
       "cohere",
@@ -132,6 +133,9 @@ describe("STT model display labels", () => {
     );
     expect(displayModelLabel("qwen3-asr-flash-realtime")).toBe(
       "Qwen3 ASR Flash Realtime",
+    );
+    expect(displayModelLabel("qwen-audio-3.1-asr-flash-streaming")).toBe(
+      "Qwen-Audio 3.1 ASR Flash Streaming",
     );
     expect(displayModelLabel("glm-asr-2512")).toBe("GLM ASR");
     expect(displayModelLabel("FunAudioLLM/SenseVoiceSmall")).toBe(

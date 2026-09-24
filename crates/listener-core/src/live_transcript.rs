@@ -1,6 +1,6 @@
 use anlg_transcript::{
     FinalizedWord, IdentityAssignment, PartialWord, SegmentKey, SegmentWord, TranscriptDelta,
-    TranscriptProcessor, channel_assignments_for_participants, segment_options_for_participants,
+    TranscriptProcessor, segment_options_for_assignments,
 };
 use owhisper_interface::stream::StreamResponse;
 
@@ -63,10 +63,10 @@ impl From<TranscriptDelta> for LiveTranscriptDelta {
 
 #[derive(Default)]
 pub struct LiveTranscriptEngine {
+    provider_name: String,
     processor: TranscriptProcessor,
     normalizer: TranscriptNormalizer,
     rendered_segments: RenderedSegmentState,
-    max_speaker_index: Option<i32>,
 }
 
 impl LiveTranscriptEngine {
@@ -88,38 +88,32 @@ impl LiveTranscriptEngine {
     /// engine emits carry the same names the settled render will.
     pub fn with_speaker_assignments(
         provider_name: &str,
-        participant_human_ids: &[String],
-        self_human_id: Option<&str>,
+        _participant_human_ids: &[String],
+        _self_human_id: Option<&str>,
         speaker_assignments: Vec<IdentityAssignment>,
     ) -> Self {
-        let channel_assignments =
-            channel_assignments_for_participants(participant_human_ids, self_human_id);
-        let segment_options =
-            segment_options_for_participants(participant_human_ids, self_human_id);
-        let max_speaker_index =
-            max_speaker_index_for_participants(participant_human_ids, self_human_id);
+        let segment_options = segment_options_for_assignments(&speaker_assignments);
 
         let normalizer = TranscriptNormalizer::for_provider(provider_name);
 
         Self {
+            provider_name: provider_name.to_owned(),
             processor: TranscriptProcessor::new()
                 .with_partial_finalization(normalizer.finalize_partials())
                 .with_flush_partial_finalization(normalizer.flush_partials())
                 .with_final_word_stitching(!matches!(normalizer, TranscriptNormalizer::Nari)),
             normalizer,
             rendered_segments: RenderedSegmentState::new(
-                channel_assignments,
+                Vec::new(),
                 speaker_assignments,
                 segment_options,
             ),
-            max_speaker_index,
         }
     }
 
     pub fn process(&mut self, response: &StreamResponse) -> Option<LiveTranscriptUpdate> {
         let mut normalized = response.clone();
         self.normalizer.normalize(&mut normalized);
-        clamp_response_speaker_indices(&mut normalized, self.max_speaker_index);
         let delta = match &normalized {
             StreamResponse::TranscriptResponse {
                 is_final: true,
@@ -156,21 +150,35 @@ impl LiveTranscriptEngine {
     /// wait for the next stream response to see it.
     pub fn update_identities(
         &mut self,
-        participant_human_ids: &[String],
-        self_human_id: Option<&str>,
+        _participant_human_ids: &[String],
+        _self_human_id: Option<&str>,
         speaker_assignments: Vec<IdentityAssignment>,
     ) -> Option<LiveTranscriptSegmentDelta> {
-        self.max_speaker_index =
-            max_speaker_index_for_participants(participant_human_ids, self_human_id);
-        self.rendered_segments.update_identities(
-            channel_assignments_for_participants(participant_human_ids, self_human_id),
-            speaker_assignments,
-            segment_options_for_participants(participant_human_ids, self_human_id),
-        )
+        let segment_options = segment_options_for_assignments(&speaker_assignments);
+        self.rendered_segments
+            .update_identities(Vec::new(), speaker_assignments, segment_options)
+    }
+
+    pub fn provider_name(&self) -> &str {
+        &self.provider_name
+    }
+
+    /// Finalize pending words for a stream that is about to be replaced. Unlike `flush`, the
+    /// delivery position survives, so the replacement stream's replayed audio is not emitted twice.
+    pub fn checkpoint(&mut self) -> Option<LiveTranscriptUpdate> {
+        let delta = self.processor.checkpoint();
+        self.update_from(delta.into())
     }
 
     pub fn flush(&mut self) -> Option<LiveTranscriptUpdate> {
-        let transcript_delta: LiveTranscriptDelta = self.processor.flush().into();
+        let delta = self.processor.flush();
+        self.update_from(delta.into())
+    }
+
+    fn update_from(
+        &mut self,
+        transcript_delta: LiveTranscriptDelta,
+    ) -> Option<LiveTranscriptUpdate> {
         let segment_delta = self.rendered_segments.apply_delta(&transcript_delta);
         if transcript_delta.is_empty() && segment_delta.is_none() {
             return None;
@@ -180,33 +188,6 @@ impl LiveTranscriptEngine {
             transcript_delta,
             segment_delta,
         })
-    }
-}
-
-fn max_speaker_index_for_participants(
-    participant_human_ids: &[String],
-    self_human_id: Option<&str>,
-) -> Option<i32> {
-    crate::expected_speakers_per_channel(participant_human_ids, self_human_id)
-        .and_then(|count| count.checked_sub(1))
-        .and_then(|index| i32::try_from(index).ok())
-}
-
-fn clamp_response_speaker_indices(response: &mut StreamResponse, max_speaker_index: Option<i32>) {
-    let Some(max_speaker_index) = max_speaker_index else {
-        return;
-    };
-
-    let StreamResponse::TranscriptResponse { channel, .. } = response else {
-        return;
-    };
-
-    for alternative in &mut channel.alternatives {
-        for word in &mut alternative.words {
-            if let Some(speaker) = word.speaker {
-                word.speaker = Some(speaker.clamp(0, max_speaker_index));
-            }
-        }
     }
 }
 

@@ -1,3 +1,5 @@
+import type { InferToolInput, InferToolOutput } from "ai";
+
 import type {
   GetMeetingInput,
   GetMeetingTranscriptInput,
@@ -8,10 +10,14 @@ import type {
   TranscriptPage,
 } from "@anlg/plugin-db";
 
-import { CONTEXT_TEXT_FIELD } from "./context-text";
 import { buildEditMemoTool } from "./edit-memo";
 import { buildEditSummaryTool } from "./edit-summary";
 import { buildReadFolderMaterialTool } from "./folder-materials";
+import {
+  buildCreateFolderTool,
+  buildListFoldersTool,
+  buildMoveMeetingsToFolderTool,
+} from "./folders";
 import {
   buildGetMeetingTool,
   buildGetMeetingTranscriptTool,
@@ -38,7 +44,6 @@ import { buildWebSearchTool } from "./web-search";
 import type { SearchFilters } from "~/search/contexts/engine/types";
 
 export type { ToolDependencies };
-export { CONTEXT_TEXT_FIELD };
 
 function withToolLogging<T extends { execute?: (...args: any[]) => any }>(
   name: string,
@@ -72,6 +77,12 @@ function withToolLogging<T extends { execute?: (...args: any[]) => any }>(
 }
 
 export const buildChatTools = (deps: ToolDependencies) => ({
+  list_folders: withToolLogging("list_folders", buildListFoldersTool()),
+  create_folder: withToolLogging("create_folder", buildCreateFolderTool()),
+  move_meetings_to_folder: withToolLogging(
+    "move_meetings_to_folder",
+    buildMoveMeetingsToFolderTool(),
+  ),
   list_meetings: withToolLogging("list_meetings", buildListMeetingsTool()),
   get_meeting: withToolLogging("get_meeting", buildGetMeetingTool()),
   get_meeting_transcript: withToolLogging(
@@ -120,6 +131,18 @@ export const buildChatTools = (deps: ToolDependencies) => ({
 });
 
 type LocalTools = {
+  list_folders: {
+    input: InferToolInput<ReturnType<typeof buildListFoldersTool>>;
+    output: InferToolOutput<ReturnType<typeof buildListFoldersTool>>;
+  };
+  create_folder: {
+    input: InferToolInput<ReturnType<typeof buildCreateFolderTool>>;
+    output: InferToolOutput<ReturnType<typeof buildCreateFolderTool>>;
+  };
+  move_meetings_to_folder: {
+    input: InferToolInput<ReturnType<typeof buildMoveMeetingsToFolderTool>>;
+    output: InferToolOutput<ReturnType<typeof buildMoveMeetingsToFolderTool>>;
+  };
   list_meetings: {
     input: ListMeetingsInput;
     output: MeetingPage;

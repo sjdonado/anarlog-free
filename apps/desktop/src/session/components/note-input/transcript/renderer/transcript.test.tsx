@@ -1,18 +1,33 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, render as renderUi, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   IdentityAssignment,
   RenderTranscriptRequest,
+  RenderedTranscriptSegment,
 } from "@anlg/plugin-transcription";
 
 import { RenderTranscript } from "./transcript";
 
 import type { Segment } from "~/stt/live-segment";
 
+function render(ui: ReactNode, options?: Parameters<typeof renderUi>[1]) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return renderUi(ui, {
+    ...options,
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+}
+
 const mocks = vi.hoisted(() => ({
   assignTranscriptSpeaker: vi.fn(),
+  renderTranscriptSegments: vi.fn(),
   search: null as null | {
     activeMatchId: string | null;
     caseSensitive: boolean;
@@ -25,6 +40,12 @@ const mocks = vi.hoisted(() => ({
     offsetMs: 0,
     sessionId: "session-1",
   })),
+}));
+
+vi.mock("@anlg/plugin-transcription", () => ({
+  commands: {
+    renderTranscriptSegments: mocks.renderTranscriptSegments,
+  },
 }));
 
 vi.mock("../../search/context", () => ({
@@ -80,41 +101,50 @@ describe("RenderTranscript", () => {
     });
   });
 
-  it("loads one content record and one metadata projection per transcript", () => {
-    render(
-      <RenderTranscript
-        scrollElement={null}
-        isLastTranscript
-        shouldScrollToEnd={false}
-        transcriptId="transcript-1"
-        currentActive
-        captureGeneration={7}
-        liveSegments={createSegments(500)}
-        currentMs={0}
-        seek={vi.fn()}
-        startPlayback={vi.fn()}
-        audioExists
-      />,
-    );
+  it.each([false, true])(
+    "keeps read and edit mode virtualized with one content and metadata subscription (editMode=%s)",
+    (editMode) => {
+      render(
+        <RenderTranscript
+          scrollElement={null}
+          isLastTranscript
+          shouldScrollToEnd={false}
+          transcriptId="transcript-1"
+          currentActive
+          captureGeneration={7}
+          editMode={editMode}
+          liveSegments={createSegments(500)}
+          currentMs={0}
+          seek={vi.fn()}
+          startPlayback={vi.fn()}
+          audioExists
+        />,
+      );
 
-    expect(document.querySelectorAll("section").length).toBeLessThanOrEqual(30);
-    expect(
-      document
-        .querySelector("[data-transcript-virtual-total]")
-        ?.getAttribute("data-transcript-virtual-total"),
-    ).toBe("500");
-    expect(mocks.useRenderedTranscriptData).toHaveBeenCalledOnce();
-    expect(mocks.useRenderedTranscriptData).toHaveBeenCalledWith(
-      "transcript-1",
-      true,
-      7,
-    );
-    expect(mocks.useTranscriptTimelineMetadata).toHaveBeenCalledTimes(1);
-    expect(mocks.useTranscriptTimelineMetadata).toHaveBeenCalledWith(
-      "transcript-1",
-      false,
-    );
-  });
+      expect(document.querySelectorAll("section").length).toBeLessThanOrEqual(
+        30,
+      );
+      expect(document.querySelectorAll("[data-transcript-editor]").length).toBe(
+        editMode ? document.querySelectorAll("section").length : 0,
+      );
+      expect(
+        document
+          .querySelector("[data-transcript-virtual-total]")
+          ?.getAttribute("data-transcript-virtual-total"),
+      ).toBe("500");
+      expect(mocks.useRenderedTranscriptData).toHaveBeenCalledOnce();
+      expect(mocks.useRenderedTranscriptData).toHaveBeenCalledWith(
+        "transcript-1",
+        true,
+        7,
+      );
+      expect(mocks.useTranscriptTimelineMetadata).toHaveBeenCalledTimes(1);
+      expect(mocks.useTranscriptTimelineMetadata).toHaveBeenCalledWith(
+        "transcript-1",
+        false,
+      );
+    },
+  );
 
   it("preserves persisted history when a recovered live preview only has the tail", () => {
     const prefix = createSegment("persisted", 0);
@@ -252,6 +282,85 @@ describe("RenderTranscript", () => {
     );
 
     expect(screen.getByRole("button", { name: "Ada" })).toBeTruthy();
+  });
+
+  it("keeps context-resolved speaker names while a live update is re-resolved", async () => {
+    const live = createSegment("live", 0);
+    const request: RenderTranscriptRequest = {
+      ...createRenderRequest([live]),
+      speaker_context: { intervals: [] },
+    };
+    mocks.useRenderedTranscriptData.mockReturnValue({
+      maxSpeakerNumber: undefined,
+      request,
+      segments: [],
+    });
+    const labelAda = (segment: Segment): RenderedTranscriptSegment => ({
+      ...segment,
+      speaker_label: "Ada",
+      provisional_speaker: {
+        name: "Ada",
+        human_id: "human-1",
+        reason: "sole_remote_participant",
+      },
+    });
+    mocks.renderTranscriptSegments.mockResolvedValueOnce({
+      status: "ok",
+      data: [labelAda(live)],
+    });
+
+    const rendered = render(
+      <RenderTranscript
+        scrollElement={null}
+        isLastTranscript
+        shouldScrollToEnd={false}
+        transcriptId="transcript-1"
+        currentActive
+        liveSegments={[live]}
+        currentMs={0}
+        seek={vi.fn()}
+        startPlayback={vi.fn()}
+        audioExists
+      />,
+    );
+    await screen.findByRole("button", { name: "Ada" });
+
+    mocks.renderTranscriptSegments.mockImplementationOnce(
+      () => new Promise(() => {}),
+    );
+    const nextWord = {
+      text: " next",
+      start_ms: 100,
+      end_ms: 200,
+      channel: "MixedCapture" as const,
+      is_final: false,
+    };
+    const updated = {
+      ...live,
+      id: "segment-live:next",
+      end_ms: nextWord.end_ms,
+      text: `${live.text}${nextWord.text}`,
+      words: [...live.words, nextWord],
+    };
+    rendered.rerender(
+      <RenderTranscript
+        scrollElement={null}
+        isLastTranscript
+        shouldScrollToEnd={false}
+        transcriptId="transcript-1"
+        currentActive
+        liveSegments={[updated]}
+        currentMs={0}
+        seek={vi.fn()}
+        startPlayback={vi.fn()}
+        audioExists
+      />,
+    );
+
+    expect(mocks.renderTranscriptSegments).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "Ada" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Speaker/ })).toBeNull();
+    expect(document.body.textContent).toContain("next");
   });
 
   it("renders identities resolved by the native settled renderer", () => {

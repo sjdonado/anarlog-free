@@ -38,6 +38,10 @@ import {
 import { RelatedNotesSection } from "./related-notes";
 import { ContactFacehash } from "./shared";
 
+import { useOptionalAuth } from "~/auth";
+import { EnrichContactFromCrm } from "~/crm/enrich-contact";
+import { useOwnerUserId } from "~/shared/owner-user";
+
 export function DetailsColumn({
   human,
   humans,
@@ -51,6 +55,10 @@ export function DetailsColumn({
   handleSessionClick: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const localOwnerUserId = useOwnerUserId();
+  const auth = useOptionalAuth();
+  const ownerUserId = auth?.session?.user.id ?? localOwnerUserId;
+  const readOnly = human?.id === ownerUserId;
   const { t } = useLingui();
   const [showCompactIdentity, setShowCompactIdentity] = useState(false);
   const personSessions = useHumanSessions(human?.id ?? "");
@@ -68,10 +76,12 @@ export function DetailsColumn({
       human?.email
         ? humans.filter(
             (candidate) =>
-              candidate.id !== human.id && candidate.email === human.email,
+              candidate.id !== human.id &&
+              candidate.id !== ownerUserId &&
+              candidate.email === human.email,
           )
         : [],
-    [human, humans],
+    [human, humans, ownerUserId],
   );
 
   const handleMergeContacts = useCallback(
@@ -91,6 +101,7 @@ export function DetailsColumn({
       {human ? (
         <>
           <ContactPageHeader
+            readOnly={readOnly}
             title={human.name || human.email || t`Unnamed`}
             compactIdentity={
               human.avatarDataUrl ? (
@@ -121,21 +132,37 @@ export function DetailsColumn({
             }}
           >
             <div className="border-border flex items-center justify-center border-b py-6">
-              <AvatarUploadButton
-                label={t`Change photo`}
-                onUpload={(dataUrl) =>
-                  persistContactAvatar("human", human.id, dataUrl)
-                }
-              >
-                {human.avatarDataUrl ? (
+              {readOnly ? (
+                human.avatarDataUrl ? (
                   <ContactImage src={human.avatarDataUrl} size={64} />
                 ) : (
                   <ContactFacehash name={facehashName} size={64} />
-                )}
-              </AvatarUploadButton>
+                )
+              ) : (
+                <AvatarUploadButton
+                  label={t`Change photo`}
+                  onUpload={(dataUrl) =>
+                    persistContactAvatar("human", human.id, dataUrl)
+                  }
+                >
+                  {human.avatarDataUrl ? (
+                    <ContactImage src={human.avatarDataUrl} size={64} />
+                  ) : (
+                    <ContactFacehash name={facehashName} size={64} />
+                  )}
+                </AvatarUploadButton>
+              )}
             </div>
 
-            {duplicatesWithData.length > 0 && (
+            {!readOnly && ownerUserId && (
+              <EnrichContactFromCrm
+                key={`${human.id}:crm`}
+                human={human}
+                ownerUserId={ownerUserId}
+              />
+            )}
+
+            {!readOnly && duplicatesWithData.length > 0 && (
               <div className="border-border border-b bg-red-50 px-6 py-4">
                 <h4 className="mb-1 text-sm font-semibold text-red-900">
                   Duplicate Contact
@@ -186,64 +213,94 @@ export function DetailsColumn({
               </div>
             )}
 
-            <div>
-              <div className="border-border flex items-center border-b px-4 py-3">
-                <div className="text-muted-foreground w-28 text-sm">
-                  <Trans>Name</Trans>
-                </div>
-                <div className="flex-1">
-                  <EditablePersonNameField
-                    key={`${human.id}:name`}
-                    personId={human.id}
-                    value={human.name}
-                  />
-                </div>
+            {readOnly ? (
+              <div>
+                {[
+                  [t`Name`, human.name],
+                  [t`Job Title`, human.jobTitle],
+                  [t`Company`, organizationName],
+                  [t`Email`, human.email],
+                  [t`Phone`, human.phone],
+                  [t`LinkedIn`, human.linkedinUsername],
+                  [t`Notes`, human.memo],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="border-border flex items-center border-b px-4 py-3"
+                  >
+                    <div className="text-muted-foreground w-28 text-sm">
+                      {label}
+                    </div>
+                    <div className="min-w-0 flex-1 text-base break-words whitespace-pre-wrap">
+                      {value}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <EditablePersonJobTitleField
-                key={`${human.id}:job-title`}
-                personId={human.id}
-                value={human.jobTitle}
-              />
+            ) : (
+              <div>
+                <div className="border-border flex items-center border-b px-4 py-3">
+                  <div className="text-muted-foreground w-28 text-sm">
+                    <Trans>Name</Trans>
+                  </div>
+                  <div className="flex-1">
+                    <EditablePersonNameField
+                      key={`${human.id}:name`}
+                      personId={human.id}
+                      value={human.name}
+                    />
+                  </div>
+                </div>
+                <EditablePersonJobTitleField
+                  key={`${human.id}:job-title`}
+                  personId={human.id}
+                  value={human.jobTitle}
+                />
 
-              <div className="border-border flex items-center border-b px-4 py-3">
-                <div className="text-muted-foreground w-28 text-sm">
-                  <Trans>Company</Trans>
+                <div className="border-border flex items-center border-b px-4 py-3">
+                  <div className="text-muted-foreground w-28 text-sm">
+                    <Trans>Company</Trans>
+                  </div>
+                  <div className="flex-1">
+                    <ContactOrganizationSelector
+                      onChange={(organizationId) =>
+                        persistHumanUpdate(human.id, {
+                          organizationId: organizationId ?? "",
+                        })
+                      }
+                      organization={
+                        organizations.find(
+                          (organization) =>
+                            organization.id === human.organizationId,
+                        ) ?? null
+                      }
+                      organizations={organizations}
+                    />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <EditPersonOrganizationSelector
-                    personId={human.id}
-                    organization={
-                      organizations.find(
-                        (organization) =>
-                          organization.id === human.organizationId,
-                      ) ?? null
-                    }
-                    organizations={organizations}
-                  />
-                </div>
+
+                <EditablePersonEmailField
+                  key={`${human.id}:email`}
+                  personId={human.id}
+                  value={human.email}
+                />
+                <EditablePersonPhoneField
+                  key={`${human.id}:phone`}
+                  personId={human.id}
+                  value={human.phone}
+                />
+                <EditablePersonLinkedInField
+                  key={`${human.id}:linkedin`}
+                  personId={human.id}
+                  value={human.linkedinUsername}
+                />
+                <EditablePersonMemoField
+                  key={`${human.id}:memo`}
+                  personId={human.id}
+                  value={human.memo}
+                />
               </div>
-
-              <EditablePersonEmailField
-                key={`${human.id}:email`}
-                personId={human.id}
-                value={human.email}
-              />
-              <EditablePersonPhoneField
-                key={`${human.id}:phone`}
-                personId={human.id}
-                value={human.phone}
-              />
-              <EditablePersonLinkedInField
-                key={`${human.id}:linkedin`}
-                personId={human.id}
-                value={human.linkedinUsername}
-              />
-              <EditablePersonMemoField
-                key={`${human.id}:memo`}
-                personId={human.id}
-                value={human.memo}
-              />
-            </div>
+            )}
 
             {personSessions.length > 0 && (
               <ContactSummarySection summary={contactSummary} />
@@ -522,33 +579,41 @@ function EditablePersonMemoField({
   );
 }
 
-function EditPersonOrganizationSelector({
-  personId,
+export function ContactOrganizationSelector({
+  onChange: handleChange,
   organization,
   organizations,
+  disabled = false,
 }: {
-  personId: string;
+  onChange: (organizationId: string | null) => void;
   organization: OrganizationRecord | null;
   organizations: OrganizationRecord[];
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const handleChange = (organizationId: string | null) => {
-    persistHumanUpdate(personId, {
-      organizationId: organizationId ?? "",
-    });
-  };
-
   const handleRemoveOrganization = () => {
+    if (disabled) return;
     handleChange(null);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={disabled ? false : open}
+      onOpenChange={(next) => {
+        if (!disabled) setOpen(next);
+      }}
+    >
       <PopoverTrigger asChild>
-        <div className="hover:bg-accent -mx-2 inline-flex cursor-pointer items-center rounded-lg px-2 py-1 transition-colors">
+        <div
+          aria-disabled={disabled || undefined}
+          className={cn(
+            "hover:bg-accent -mx-2 inline-flex cursor-pointer items-center rounded-lg px-2 py-1 transition-colors",
+            disabled && "pointer-events-none opacity-60",
+          )}
+        >
           {organization?.name ? (
             <div className="flex items-center">
-              <span className="text-base">{organization.name}</span>
+              <span className="text-base md:text-sm">{organization.name}</span>
               <span className="group text-muted-foreground ml-2">
                 <MinusCircle
                   className="text-muted-foreground size-4 cursor-pointer hover:text-red-600"
@@ -560,7 +625,7 @@ function EditPersonOrganizationSelector({
               </span>
             </div>
           ) : (
-            <span className="text-muted-foreground flex items-center gap-1 text-base">
+            <span className="text-muted-foreground flex items-center gap-1 text-base md:text-sm">
               <Plus className="size-4" />
               <Trans>Add organization</Trans>
             </span>

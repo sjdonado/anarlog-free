@@ -12,13 +12,15 @@ import { SettingsTodo } from "./todo";
 import { LLM } from "~/settings/ai/llm";
 import { STT } from "~/settings/ai/stt";
 import { SettingsAppearance } from "~/settings/appearance";
+import { SettingsCrm } from "~/settings/crm";
 import { SettingsDevelopers } from "~/settings/developers";
+import { SettingsDictation } from "~/settings/dictation";
 import { SettingsDictionary } from "~/settings/dictionary";
+import { SettingsBilling } from "~/settings/general/billing";
 import { SettingsHydrationBoundary } from "~/settings/hydration-boundary";
 import { SettingsImports } from "~/settings/imports";
 import { SettingsPrivacy } from "~/settings/privacy";
-import { SettingsStats } from "~/settings/stats";
-import { SettingsInsights } from "~/settings/stats/insights";
+import { SettingsInsights } from "~/settings/stats";
 import { SettingsSync } from "~/settings/sync";
 import { SettingsTeam } from "~/settings/team";
 import { StandardContentWrapper } from "~/shared/main";
@@ -53,8 +55,9 @@ function SettingsView({ tab }: { tab: Extract<Tab, { type: "settings" }> }) {
     switch (activeTab) {
       case "account":
         return <SettingsAccount />;
+      case "billing":
+        return <SettingsBilling />;
       case "stats":
-        return <SettingsStats />;
       case "insights":
         return <SettingsInsights />;
       case "app":
@@ -71,6 +74,8 @@ function SettingsView({ tab }: { tab: Extract<Tab, { type: "settings" }> }) {
         return <SettingsTeam />;
       case "imports":
         return <SettingsImports />;
+      case "crm":
+        return <SettingsCrm />;
       case "permissions":
         return <SettingsPermissions />;
       case "privacy":
@@ -79,6 +84,8 @@ function SettingsView({ tab }: { tab: Extract<Tab, { type: "settings" }> }) {
         return <SettingsDevelopers />;
       case "dictionary":
         return <SettingsDictionary />;
+      case "dictation":
+        return <SettingsDictation />;
       case "transcription":
         return <STT />;
       case "intelligence":

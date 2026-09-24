@@ -16,7 +16,7 @@ import {
   AppFloatingPanel,
   PopoverContent,
 } from "@anlg/ui/components/ui/popover";
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import { toast } from "@anlg/ui/components/ui/toast";
 
 import {
   AccessEntryRow,
@@ -36,7 +36,7 @@ import {
 import { useSessionRecapDelivery } from "./delivery-management";
 import {
   EmailRecapForm,
-  ShareRecapOverflowMenu,
+  ShareLinkActions,
   SlackRecapForm,
   type ShareRecapMode,
 } from "./delivery-panel";
@@ -177,11 +177,11 @@ export function SessionSharePopoverContent({
         ),
       ),
     onSuccess: () => {
-      sonnerToast.success(t`Desktop edits published. Sharing resumed.`);
+      toast.success(t`Desktop edits published. Sharing resumed.`);
     },
     onError: (error) => {
       if (error instanceof ShareOperationAbortedError) return;
-      sonnerToast.error(
+      toast.error(
         t`Could not publish the desktop edits. Check the latest web copy and try again.`,
         { id: "desktop-edits-publish-failed" },
       );
@@ -210,7 +210,7 @@ export function SessionSharePopoverContent({
       }),
     onError: (error) => {
       if (error instanceof ShareOperationAbortedError) return;
-      sonnerToast.error(t`Could not open the web copy.`);
+      toast.error(t`Could not open the web copy.`);
     },
   });
 
@@ -264,7 +264,7 @@ export function SessionSharePopoverContent({
         return { copied: false };
       }),
     onSuccess: ({ copied }) => {
-      sonnerToast.success(
+      toast.success(
         copied
           ? t`Anyone with the link can view. Link copied.`
           : t`Access updated.`,
@@ -273,7 +273,7 @@ export function SessionSharePopoverContent({
     onError: (error) => {
       setOptimisticScope(null);
       if (error instanceof ShareOperationAbortedError) return;
-      sonnerToast.error(t`Could not update general access.`);
+      toast.error(t`Could not update general access.`);
     },
     onSettled: async () => {
       await onChanged();
@@ -306,11 +306,11 @@ export function SessionSharePopoverContent({
       trackAnalyticsEvent("share_link_copied", {
         entry_point: "share_panel",
       });
-      sonnerToast.success(t`Share link copied.`);
+      toast.success(t`Share link copied.`);
     },
     onError: (error) => {
       if (error instanceof ShareOperationAbortedError) return;
-      sonnerToast.error(t`Could not copy the share link.`);
+      toast.error(t`Could not copy the share link.`);
     },
   });
 
@@ -474,7 +474,7 @@ export function SessionSharePopoverContent({
                     disabled={!canPublish || inviteMutation.isPending}
                   />
 
-                  <div className="border-border/60 mt-2 border-t pt-2">
+                  <div className="mt-2 pt-2">
                     <h4 className="text-muted-foreground mb-1 px-1.5 text-[10px] font-medium">
                       <Trans>People with access</Trans>
                     </h4>
@@ -588,31 +588,33 @@ export function SessionSharePopoverContent({
                 scopeMutation.mutate(target);
               }}
             />
-            <ShareRecapOverflowMenu onValueChange={setRecapMode} />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={
-                generalCopyMutation.isPending ||
-                scopeMutation.isPending ||
-                !management
-              }
-              onClick={() => {
-                generalCopyMutation.mutate();
-              }}
-              className="h-7 shrink-0 rounded-md px-2.5 text-xs"
-            >
-              {generalCopyMutation.isPending || scopeMutation.isPending ? (
-                <CircleNotch
-                  className="size-4 animate-spin"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Copy className="size-4" aria-hidden="true" />
-              )}
-              <Trans>Copy link</Trans>
-            </Button>
+            <ShareLinkActions onValueChange={setRecapMode}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                smoothCorners={false}
+                disabled={
+                  generalCopyMutation.isPending ||
+                  scopeMutation.isPending ||
+                  !management
+                }
+                onClick={() => {
+                  generalCopyMutation.mutate();
+                }}
+                className="h-7 shrink-0 rounded-l-md rounded-r-none px-2.5 text-xs"
+              >
+                {generalCopyMutation.isPending || scopeMutation.isPending ? (
+                  <CircleNotch
+                    className="size-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Copy className="size-4" aria-hidden="true" />
+                )}
+                <Trans>Copy link</Trans>
+              </Button>
+            </ShareLinkActions>
           </footer>
         </div>
       </AppFloatingPanel>

@@ -24,7 +24,11 @@ vi.mock("~/db", () => ({
   },
 }));
 
-import { loadSessionShareSource, useAvailableShareWorkspaces } from "./source";
+import {
+  loadSessionShareSource,
+  useAvailableShareWorkspaces,
+  usePersonalWorkspaceId,
+} from "./source";
 
 import { DEFAULT_USER_ID } from "~/shared/utils";
 
@@ -46,6 +50,7 @@ function sourceRow(
     assigned_workspace_deleted_at: string | null;
     assigned_workspace_role: string | null;
     binding_json: string | null;
+    library_account_id: string | null;
   }> = {},
 ) {
   return {
@@ -83,6 +88,32 @@ describe("loadSessionShareSource", () => {
     vi.clearAllMocks();
     mocks.workspaceRows = [];
     mocks.liveQueryOptions = null;
+  });
+
+  it("shares personal library notes through the active account", async () => {
+    mocks.execute.mockResolvedValueOnce([
+      sourceRow({
+        workspace_id: "library-a",
+        library_account_id: ACCOUNT_ID,
+        personal_workspace_available: 1,
+      }),
+    ]);
+    await expect(
+      loadSessionShareSource("session-1", ACCOUNT_ID),
+    ).resolves.toMatchObject({ workspaceId: ACCOUNT_ID });
+  });
+
+  it("rejects a library connected to another account even when the personal workspace exists", async () => {
+    mocks.execute.mockResolvedValueOnce([
+      sourceRow({
+        workspace_id: "library-a",
+        library_account_id: "other-account",
+        personal_workspace_available: 1,
+      }),
+    ]);
+    await expect(
+      loadSessionShareSource("session-1", ACCOUNT_ID),
+    ).rejects.toThrow();
   });
 
   it("loads the first summary instead of the raw memo", async () => {
@@ -359,6 +390,36 @@ describe("useAvailableShareWorkspaces", () => {
     expect(
       renderHook(() => useAvailableShareWorkspaces(null)).result.current,
     ).toEqual([]);
+    expect(mocks.liveQueryOptions).toMatchObject({ enabled: false });
+  });
+});
+
+describe("usePersonalWorkspaceId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.workspaceRows = [];
+    mocks.liveQueryOptions = null;
+  });
+
+  it("returns the active personal workspace for a signed-in account", () => {
+    mocks.workspaceRows = [{ id: ACCOUNT_ID, name: "Personal" }];
+
+    expect(
+      renderHook(() => usePersonalWorkspaceId(ACCOUNT_ID)).result.current,
+    ).toBe(ACCOUNT_ID);
+    expect(mocks.liveQueryOptions).toMatchObject({
+      params: [ACCOUNT_ID, ACCOUNT_ID],
+      enabled: true,
+    });
+    expect(mocks.liveQueryOptions?.sql).toContain(
+      "workspace.kind = 'personal'",
+    );
+  });
+
+  it("returns no personal workspace without a signed-in account", () => {
+    expect(renderHook(() => usePersonalWorkspaceId(null)).result.current).toBe(
+      "",
+    );
     expect(mocks.liveQueryOptions).toMatchObject({ enabled: false });
   });
 });

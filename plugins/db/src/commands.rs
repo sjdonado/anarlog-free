@@ -500,18 +500,15 @@ pub(crate) async fn import_e2ee_device_enrollment<R: tauri::Runtime>(
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn subscribe(
+pub(crate) async fn subscribe<R: tauri::Runtime>(
+    webview: tauri::Webview<R>,
     state: tauri::State<'_, ManagedState>,
     sql: String,
     params: Vec<serde_json::Value>,
     on_event: Channel<QueryEvent>,
 ) -> Result<anlg_db_reactive::SubscriptionRegistration, String> {
     state
-        .subscribe(
-            sql,
-            params,
-            crate::runtime::QueryEventChannel::new(on_event),
-        )
+        .subscribe(sql, params, state.query_channel(webview.label(), on_event))
         .await
         .map_err(|error| error.to_string())
 }
@@ -734,6 +731,20 @@ pub(crate) async fn start_cloudsync(state: tauri::State<'_, ManagedState>) -> Re
         .map_err(|error| error.to_string());
     state.record_cloudsync_configuration_result("start", &result);
     result
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn connect_local_library(
+    state: tauri::State<'_, ManagedState>,
+    account_user_id: String,
+    expected_library_workspace_id: String,
+) -> Result<(), String> {
+    let account_user_id = canonical_e2ee_account_user_id(&account_user_id)?;
+    state
+        .connect_local_library(account_user_id, expected_library_workspace_id)
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

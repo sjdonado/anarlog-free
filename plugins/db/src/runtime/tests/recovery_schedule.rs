@@ -1,6 +1,57 @@
 use super::*;
 
 #[test]
+fn recovery_reports_embedded_receive_failures_without_marking_progress() {
+    for (details, expected) in [
+        (
+            serde_json::json!({"error": "later chunk failed"}),
+            "receive error: later chunk failed",
+        ),
+        (
+            serde_json::json!({"lastFailure": {"code": "check_failed"}}),
+            "receive failure: {\"code\":\"check_failed\"}",
+        ),
+        (
+            serde_json::json!({
+                "error": "later chunk failed",
+                "lastFailure": {"code": "check_failed"}
+            }),
+            "receive error: later chunk failed; receive failure: {\"code\":\"check_failed\"}",
+        ),
+    ] {
+        let mut receive = serde_json::json!({
+            "rows": 1,
+            "tables": ["e2ee_records"],
+            "chunks": 1,
+            "complete": true
+        });
+        receive
+            .as_object_mut()
+            .unwrap()
+            .extend(details.as_object().unwrap().clone());
+        let result = serde_json::from_value(serde_json::json!({"receive": receive})).unwrap();
+
+        assert_eq!(
+            anlg_db_core::cloudsync_receive_error(&result).as_deref(),
+            Some(expected)
+        );
+        assert!(!cloudsync_recovery_snapshot_ready(true, &result));
+        assert!(!cloudsync_receive_delivered(&result));
+    }
+}
+
+#[test]
+fn recovery_does_not_report_healthy_partial_or_empty_receives_as_errors() {
+    for result in [
+        receive_result(1, false),
+        receive_result(0, true),
+        receive_result(1, true),
+    ] {
+        assert_eq!(anlg_db_core::cloudsync_receive_error(&result), None);
+    }
+}
+
+#[test]
 fn recovery_waits_longer_without_progress() {
     assert_eq!(
         cloudsync_recovery_step_delay(CloudsyncRecoveryStep::Progressed),
@@ -184,8 +235,48 @@ fn full_resync_schedule_tracks_generation_until_cancelled() {
 #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 #[tokio::test]
 async fn witness_repair_refresh_is_reused_until_activity_invalidates_it() {
+    run_witness_repair(WitnessRepairScenario::Refresh).await;
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+#[tokio::test]
+async fn witness_repair_encrypts_local_edits_that_defer_remote_changes() {
+    run_witness_repair(WitnessRepairScenario::LocalEdit).await;
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+#[tokio::test]
+async fn witness_repair_waits_for_missing_transcript_chunks() {
+    run_witness_repair(WitnessRepairScenario::IncompleteTranscript).await;
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+#[tokio::test]
+async fn witness_repair_resumes_after_confirming_a_large_pending_version() {
+    run_witness_repair(WitnessRepairScenario::LargePendingVersion).await;
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+#[derive(Clone, Copy)]
+enum WitnessRepairScenario {
+    Refresh,
+    LocalEdit,
+    IncompleteTranscript,
+    LargePendingVersion,
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+async fn run_witness_repair(scenario: WitnessRepairScenario) {
     use std::io::{Read, Write};
 
+    let local_edit = matches!(scenario, WitnessRepairScenario::LocalEdit);
+    let incomplete_transcript = matches!(scenario, WitnessRepairScenario::IncompleteTranscript);
+    let large_pending_version = matches!(scenario, WitnessRepairScenario::LargePendingVersion);
+    let head_sequence = if local_edit || incomplete_transcript {
+        132
+    } else {
+        130
+    };
     let db = std::sync::Arc::new(Db::connect_memory().await.unwrap());
     anlg_db_app::prepare_schema(db.as_ref()).await.unwrap();
     anlg_db_app::claim_cloudsync_workspace(db.pool(), "workspace-1")
@@ -215,9 +306,9 @@ async fn witness_repair_refresh_is_reused_until_activity_invalidates_it() {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "initialized": true,
             "initializedAt": "2026-08-26T00:00:00Z",
-            "headSequence": 130,
-            "throughSequence": 130,
-            "nextAfterSequence": 130,
+            "headSequence": head_sequence,
+            "throughSequence": head_sequence,
+            "nextAfterSequence": head_sequence,
             "events": [],
         })))
         .mount(&witness_server)
@@ -325,7 +416,7 @@ async fn witness_repair_refresh_is_reused_until_activity_invalidates_it() {
         );
     }
 
-    let events = (0..130)
+    let mut events = (0..130)
         .map(|index| {
             let sealed = workspace_key
                 .seal_field(
@@ -348,12 +439,126 @@ async fn witness_repair_refresh_is_reused_until_activity_invalidates_it() {
             }
         })
         .collect::<Vec<_>>();
+    let keys = runtime.e2ee_sync_hook.snapshot();
+    if local_edit {
+        for (revision, title) in [(1, "Base"), (2, "Remote edit")] {
+            let sealed = workspace_key
+                .seal_field(
+                    "workspace-1",
+                    "sessions",
+                    "session-000",
+                    "title",
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    revision,
+                    false,
+                    serde_json::json!(title),
+                )
+                .unwrap();
+            let event = anlg_db_app::E2eeWitnessEvent {
+                sequence: 130 + revision,
+                record_id: sealed.record_id,
+                workspace_id: "workspace-1".to_string(),
+                payload_hash: anlg_e2ee::payload_hash(&sealed.payload),
+                payload: sealed.payload,
+            };
+            if revision == 1 {
+                anlg_db_app::merge_e2ee_witness_events(
+                    db.pool(),
+                    &workspace_key,
+                    "workspace-1",
+                    &[events[0].clone(), event],
+                )
+                .await
+                .unwrap();
+                anlg_db_app::repair_e2ee_replica_from_witness_bounded(
+                    db.pool(),
+                    &keys,
+                    true,
+                    E2EE_CLOUDSYNC_DIRTY_ROW_LIMIT,
+                    1024 * 1024,
+                )
+                .await
+                .unwrap();
+                anlg_db_app::apply_e2ee_replica_changes_with_witness(db.pool(), &keys)
+                    .await
+                    .unwrap();
+                sqlx::query("UPDATE sessions SET title = 'Local edit' WHERE id = 'session-000'")
+                    .execute(db.pool())
+                    .await
+                    .unwrap();
+            } else {
+                events.push(event);
+            }
+        }
+    }
+    if incomplete_transcript {
+        for (index, (field, value)) in [
+            ("$row", serde_json::json!(true)),
+            ("words_json#n", serde_json::json!(1)),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let sealed = workspace_key
+                .seal_field(
+                    "workspace-1",
+                    "transcripts",
+                    "transcript-1",
+                    field,
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    1,
+                    false,
+                    value,
+                )
+                .unwrap();
+            events.push(anlg_db_app::E2eeWitnessEvent {
+                sequence: 131 + index as u64,
+                record_id: sealed.record_id,
+                workspace_id: "workspace-1".to_string(),
+                payload_hash: anlg_e2ee::payload_hash(&sealed.payload),
+                payload: sealed.payload,
+            });
+        }
+        anlg_db_app::merge_e2ee_witness_events(
+            db.pool(),
+            &workspace_key,
+            "workspace-1",
+            &events[130..],
+        )
+        .await
+        .unwrap();
+        anlg_db_app::apply_e2ee_replica_changes_with_witness(db.pool(), &keys)
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE transcripts SET created_at = '2026-09-14T00:00:00Z' WHERE id = 'transcript-1'",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+    }
     anlg_db_app::merge_e2ee_witness_events(db.pool(), &workspace_key, "workspace-1", &events)
         .await
         .unwrap();
-    anlg_db_app::advance_e2ee_witness_cursor(db.pool(), "workspace-1", 130)
+    anlg_db_app::advance_e2ee_witness_cursor(db.pool(), "workspace-1", head_sequence)
         .await
         .unwrap();
+
+    if large_pending_version {
+        // The status server confirms this version, as after a lost acknowledgement.
+        // One statement keeps the backlog indivisible by the version-window splitter.
+        sqlx::query(
+            "WITH RECURSIVE ids(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM ids WHERE id < 6564)
+             INSERT INTO sync_probe SELECT CAST(id AS TEXT), printf('%02048d', id) FROM ids",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+        let batch = db.cloudsync_manual_pending_payload_batch().await.unwrap();
+        assert_eq!(batch.rows, 6564);
+        assert!(batch.chunks > 1 && batch.chunks <= 8);
+        assert!(batch.bytes <= 32 * 1024 * 1024, "{batch:?}");
+    }
 
     let auth_generation = runtime.cloudsync_auth_generation();
     runtime
@@ -387,13 +592,29 @@ async fn witness_repair_refresh_is_reused_until_activity_invalidates_it() {
                 .fetch_one(db.pool())
                 .await
                 .unwrap();
-            if repaired == 130 {
+            let local_pending = local_edit
+                && anlg_db_app::has_pending_e2ee_dirty_rows_deferring_active_captures(
+                    db.pool(),
+                    &keys,
+                )
+                .await
+                .unwrap();
+            let awaiting_apply = large_pending_version
+                && sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM sessions")
+                    .fetch_one(db.pool())
+                    .await
+                    .unwrap()
+                    < events.len() as i64;
+            if repaired >= events.len() as i64 && !local_pending && !awaiting_apply {
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         }
     })
     .await;
+    if incomplete_transcript && drain.is_ok() {
+        tokio::time::sleep(CLOUDSYNC_FULL_RESYNC_RETRY_INTERVAL * 2).await;
+    }
     let failure = if drain.is_err() {
         let repaired: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM e2ee_records")
             .fetch_one(db.pool())
@@ -419,6 +640,85 @@ async fn witness_repair_refresh_is_reused_until_activity_invalidates_it() {
     cloudsync_server.join().unwrap();
     if let Some(failure) = failure {
         panic!("{failure}");
+    }
+
+    if large_pending_version {
+        let batch = db.cloudsync_manual_pending_payload_batch().await.unwrap();
+        assert_eq!(
+            batch.chunks, 0,
+            "confirmed backlog must no longer be pending"
+        );
+        let preserved: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sync_probe WHERE value = printf('%02048d', CAST(id AS INTEGER))",
+        )
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+        assert_eq!(preserved, 6564, "recovery must preserve every pending row");
+        let session_ids: Vec<String> = sqlx::query_scalar("SELECT id FROM sessions ORDER BY id")
+            .fetch_all(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(
+            session_ids,
+            (0..130)
+                .map(|index| format!("session-{index:03}"))
+                .collect::<Vec<_>>(),
+            "witness records must be decrypted and applied after the backlog drains",
+        );
+        return;
+    }
+
+    if incomplete_transcript {
+        assert_eq!(
+            anlg_db_app::cloudsync_recovery_state(db.pool())
+                .await
+                .unwrap()
+                .map(|state| state.phase),
+            Some(anlg_db_app::CloudsyncRecoveryPhase::NeedWitnessRepair),
+            "recovery must not finish with a missing transcript chunk",
+        );
+        let apply =
+            anlg_db_app::apply_received_e2ee_replica_changes_with_witness(db.pool(), &keys, false)
+                .await
+                .unwrap();
+        assert!(apply.remaining_replica_changes);
+        assert!(apply.skipped_local_changes > 0);
+        assert_eq!(apply.incomplete_chunk_columns, 1);
+        let count_record_id =
+            workspace_key.blind_field_id("transcripts", "transcript-1", "words_json#n");
+        let payload: String = sqlx::query_scalar("SELECT payload FROM e2ee_records WHERE id = ?")
+            .bind(&count_record_id)
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        let count = workspace_key
+            .open_field("workspace-1", &count_record_id, &payload)
+            .unwrap();
+        assert_eq!(count.value, serde_json::json!(1));
+        assert_eq!(count.revision, 1);
+        return;
+    }
+
+    if local_edit {
+        let title: String =
+            sqlx::query_scalar("SELECT title FROM sessions WHERE id = 'session-000'")
+                .fetch_one(db.pool())
+                .await
+                .unwrap();
+        assert_eq!(title, "Local edit");
+        let record_id = workspace_key.blind_field_id("sessions", "session-000", "title");
+        let payload: String = sqlx::query_scalar("SELECT payload FROM e2ee_records WHERE id = ?")
+            .bind(&record_id)
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        let field = workspace_key
+            .open_field("workspace-1", &record_id, &payload)
+            .unwrap();
+        assert_eq!(field.value, serde_json::json!("Local edit"));
+        assert!(field.revision > 2);
+        return;
     }
 
     let requests = witness_server.received_requests().await.unwrap();

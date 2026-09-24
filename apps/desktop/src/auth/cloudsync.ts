@@ -11,7 +11,7 @@ import {
   suspendCloudsyncAfterAuthLoss,
   suspendCloudsyncForSignOut,
 } from "@anlg/plugin-db";
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import { toast } from "@anlg/ui/components/ui/toast";
 
 import { configureCloudsyncCredentials } from "./cloudsync-configuration";
 import {
@@ -958,7 +958,7 @@ async function activateCloudsync(
           setCredentialBlock(deviceLimit ? "device_limit" : "not_entitled");
           await suspendCloudsyncAfterCredentialRejection(activeGeneration);
           if (deviceLimit) {
-            sonnerToast.error(
+            toast.error(
               t`Your plan’s sync device limit is reached. Replace or remove another device to sync here.`,
               { id: DEVICE_LIMIT_TOAST_ID },
             );
@@ -1088,6 +1088,7 @@ async function activateCloudsync(
   }, EXCHANGE_TIMEOUT_MS);
 
   const exchange = await requestCloudsyncCredentials({
+    accountUserId: session.user.id,
     accessToken: session.access_token,
     cloudsyncExtensionAvailable: status.extension_loaded,
     encryptionKeyId,
@@ -1156,7 +1157,7 @@ async function activateCloudsync(
         await suspendCloudsyncAfterCredentialRejection(activeGeneration);
       }
       if (credentialErrorCode === DEVICE_LIMIT_ERROR_CODE) {
-        sonnerToast.error(
+        toast.error(
           t`Your plan’s sync device limit is reached. Remove another device to sync here.`,
           { id: DEVICE_LIMIT_TOAST_ID },
         );
@@ -1276,7 +1277,7 @@ async function activateCloudsync(
   if (getCloudsyncCredentialBlock() !== "activation_failed") {
     setCredentialBlock(null);
   }
-  sonnerToast.dismiss(DEVICE_LIMIT_TOAST_ID);
+  toast.dismiss(DEVICE_LIMIT_TOAST_ID);
 
   try {
     const configured = await enqueuePluginOperation(async () => {

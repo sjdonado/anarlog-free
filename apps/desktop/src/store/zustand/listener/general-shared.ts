@@ -26,7 +26,7 @@ export type LiveStartBlockReason =
 
 export type LiveIntervalId = ReturnType<typeof setInterval>;
 
-export const TRANSCRIPTION_STALL_AMPLITUDE_THRESHOLD = 0.05;
+const TRANSCRIPTION_STALL_AMPLITUDE_THRESHOLD = 0.05;
 export const TRANSCRIPTION_STALL_AUDIBLE_SECONDS = 45;
 export const TRANSCRIPTION_FINAL_STALL_AUDIBLE_SECONDS = 90;
 
@@ -369,6 +369,11 @@ export const updateLiveProgress = (
       return;
     case "connected":
       live.loadingPhase = "connected";
+      // A reconnect resolves a connection error; it does nothing for the audio device.
+      if (!live.lastErrorIsAudioRelated) {
+        live.lastError = null;
+        live.lastErrorSessionId = null;
+      }
       return;
     case "audio_error":
       live.lastError = payload.error;
@@ -379,6 +384,7 @@ export const updateLiveProgress = (
       }
       return;
     case "connection_error":
+      live.loadingPhase = "idle";
       live.lastError = payload.error;
       live.lastErrorSessionId = payload.session_id;
       live.lastErrorIsAudioRelated = false;

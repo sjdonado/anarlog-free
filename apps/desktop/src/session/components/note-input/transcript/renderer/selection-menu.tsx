@@ -8,6 +8,7 @@ import {
 } from "@floating-ui/react";
 import { t } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
+import { useMutation } from "@tanstack/react-query";
 import {
   type MouseEvent,
   useCallback,
@@ -18,12 +19,21 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { ArrowsMerge, Play, UserSwitch, X } from "@anlg/ui/components/icons";
+import {
+  ArrowsMerge,
+  Copy,
+  Pencil,
+  Play,
+  Trash,
+  UserSwitch,
+  X,
+} from "@anlg/ui/components/icons";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@anlg/ui/components/ui/popover";
+import { toast } from "@anlg/ui/components/ui/toast";
 import { cn } from "@anlg/utils";
 
 import {
@@ -47,7 +57,7 @@ const MENU_CONTAINER_CLASSES = [
 ];
 
 const MENU_BUTTON_CLASSES = [
-  "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs rounded-xs",
+  "flex w-full items-center justify-start gap-2 px-2 py-1.5 text-left text-xs rounded-xs",
   "hover:bg-accent transition-colors",
 ];
 
@@ -65,7 +75,8 @@ export function SelectionMenu({
   audioExists,
   onContextClose,
   onAction,
-  onAssignSpeaker,
+  onChangeSpeaker,
+  onEdit,
 }: {
   containerRef: React.RefObject<HTMLElement | null>;
   contextRequest: TranscriptContextMenuRequest | null;
@@ -75,10 +86,8 @@ export function SelectionMenu({
     action: "copy" | "play",
     selection: TranscriptWordSelection,
   ) => void;
-  onAssignSpeaker?: (
-    selection: TranscriptWordSelection,
-    humanId: string,
-  ) => void | Promise<void>;
+  onEdit?: (selection: TranscriptWordSelection) => void;
+  onChangeSpeaker?: (selection: TranscriptWordSelection) => void;
 }) {
   return (
     <>
@@ -87,7 +96,8 @@ export function SelectionMenu({
         suspended={contextRequest !== null}
         audioExists={audioExists}
         onAction={onAction}
-        onAssignSpeaker={onAssignSpeaker}
+        onChangeSpeaker={onChangeSpeaker}
+        onEdit={onEdit}
       />
       {contextRequest && (
         <ContextSelectionMenu
@@ -97,7 +107,8 @@ export function SelectionMenu({
           audioExists={audioExists}
           onClose={onContextClose}
           onAction={onAction}
-          onAssignSpeaker={onAssignSpeaker}
+          onChangeSpeaker={onChangeSpeaker}
+          onEdit={onEdit}
         />
       )}
     </>
@@ -111,6 +122,7 @@ export function MultiSelectionBar({
   onClear,
   onAssignSpeaker,
   onMerge,
+  onDelete,
 }: {
   selection: TranscriptWordSelection;
   entryCount: number;
@@ -121,6 +133,7 @@ export function MultiSelectionBar({
     humanId: string,
   ) => void | Promise<void>;
   onMerge?: () => void | Promise<void>;
+  onDelete?: (selection: TranscriptWordSelection) => Promise<void>;
 }) {
   const fabSelectionHost = useSyncExternalStore(
     subscribeSessionFabSelectionHost,
@@ -141,6 +154,14 @@ export function MultiSelectionBar({
     onClear();
   }, [onClear, onMerge]);
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await onDelete?.(selection);
+    },
+    onSuccess: onClear,
+    onError: () => toast.error(t`Something went wrong`),
+  });
+
   const bar = (
     <div
       className={cn([
@@ -154,13 +175,16 @@ export function MultiSelectionBar({
       <span className="text-muted-foreground whitespace-nowrap">
         <Trans>{entryCount} selected</Trans>
       </span>
-      <Popover open={speakerPickerOpen} onOpenChange={setSpeakerPickerOpen}>
+      <Popover
+        open={speakerPickerOpen && !deleteMutation.isPending}
+        onOpenChange={setSpeakerPickerOpen}
+      >
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="bg-primary text-primary-foreground hover:bg-primary/90 flex h-7 items-center gap-1.5 rounded-full px-3 font-medium"
+            disabled={deleteMutation.isPending}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 flex h-7 shrink-0 items-center rounded-full px-3 font-medium whitespace-nowrap"
           >
-            <UserSwitch className="size-3.5" />
             <Trans>Change speaker</Trans>
           </button>
         </PopoverTrigger>
@@ -169,7 +193,8 @@ export function MultiSelectionBar({
           side="top"
           align="center"
           sideOffset={8}
-          className="w-80"
+          collisionPadding={16}
+          className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-32px)] flex-col overflow-hidden"
         >
           <SpeakerParticipantPicker
             sessionId={selection.sessionId}
@@ -181,7 +206,7 @@ export function MultiSelectionBar({
       {onMerge ? (
         <button
           type="button"
-          disabled={!canMerge}
+          disabled={!canMerge || deleteMutation.isPending}
           className={cn([
             "hover:bg-accent flex h-7 items-center gap-1.5 rounded-full px-2 font-medium",
             "disabled:pointer-events-none disabled:opacity-50",
@@ -192,9 +217,24 @@ export function MultiSelectionBar({
           <Trans>Merge</Trans>
         </button>
       ) : null}
+      {onDelete && (
+        <button
+          type="button"
+          disabled={deleteMutation.isPending}
+          className={cn([
+            "text-destructive hover:bg-destructive/10 flex h-7 items-center gap-1.5 rounded-full px-2 font-medium",
+            "disabled:pointer-events-none disabled:opacity-50",
+          ])}
+          onClick={() => deleteMutation.mutate()}
+        >
+          <Trash className="size-3.5" />
+          <Trans>Delete</Trans>
+        </button>
+      )}
       <button
         type="button"
         aria-label={t`Clear selection`}
+        disabled={deleteMutation.isPending}
         className="hover:bg-accent flex size-7 items-center justify-center rounded-full"
         onClick={onClear}
       >
@@ -211,7 +251,8 @@ function TextSelectionMenu({
   suspended,
   audioExists,
   onAction,
-  onAssignSpeaker,
+  onChangeSpeaker,
+  onEdit,
 }: {
   containerRef: React.RefObject<HTMLElement | null>;
   suspended: boolean;
@@ -220,10 +261,8 @@ function TextSelectionMenu({
     action: "copy" | "play",
     selection: TranscriptWordSelection,
   ) => void;
-  onAssignSpeaker?: (
-    selection: TranscriptWordSelection,
-    humanId: string,
-  ) => void | Promise<void>;
+  onEdit?: (selection: TranscriptWordSelection) => void;
+  onChangeSpeaker?: (selection: TranscriptWordSelection) => void;
 }) {
   const { isVisible, selection, hide, refs, floatingStyles, storedRange } =
     useSelectionMenuState({ containerRef });
@@ -257,7 +296,8 @@ function TextSelectionMenu({
       audioExists={audioExists}
       onClose={handleClose}
       onAction={onAction}
-      onAssignSpeaker={onAssignSpeaker}
+      onChangeSpeaker={onChangeSpeaker}
+      onEdit={onEdit}
     />
   );
 }
@@ -268,7 +308,8 @@ function ContextSelectionMenu({
   audioExists,
   onClose,
   onAction,
-  onAssignSpeaker,
+  onChangeSpeaker,
+  onEdit,
 }: {
   request: TranscriptContextMenuRequest;
   containerRef: React.RefObject<HTMLElement | null>;
@@ -278,10 +319,8 @@ function ContextSelectionMenu({
     action: "copy" | "play",
     selection: TranscriptWordSelection,
   ) => void;
-  onAssignSpeaker?: (
-    selection: TranscriptWordSelection,
-    humanId: string,
-  ) => void | Promise<void>;
+  onEdit?: (selection: TranscriptWordSelection) => void;
+  onChangeSpeaker?: (selection: TranscriptWordSelection) => void;
 }) {
   const virtualRect = useMemo(
     () => new DOMRect(request.x, request.y, 0, 0),
@@ -327,7 +366,8 @@ function ContextSelectionMenu({
       audioExists={audioExists}
       onClose={handleClose}
       onAction={onAction}
-      onAssignSpeaker={onAssignSpeaker}
+      onChangeSpeaker={onChangeSpeaker}
+      onEdit={onEdit}
     />
   );
 }
@@ -341,7 +381,8 @@ function SelectionFloatingMenu({
   audioExists,
   onClose,
   onAction,
-  onAssignSpeaker,
+  onChangeSpeaker,
+  onEdit,
 }: {
   selection: TranscriptWordSelection;
   range: Range | null;
@@ -354,25 +395,15 @@ function SelectionFloatingMenu({
     action: "copy" | "play",
     selection: TranscriptWordSelection,
   ) => void;
-  onAssignSpeaker?: (
-    selection: TranscriptWordSelection,
-    humanId: string,
-  ) => void | Promise<void>;
+  onEdit?: (selection: TranscriptWordSelection) => void;
+  onChangeSpeaker?: (selection: TranscriptWordSelection) => void;
 }) {
-  const [view, setView] = useState<"actions" | "speaker">("actions");
   const handleAction = useCallback(
     (action: "copy" | "play") => {
       onAction?.(action, selection);
       onClose();
     },
     [onAction, onClose, selection],
-  );
-  const handleAssign = useCallback(
-    async (humanId: string) => {
-      await onAssignSpeaker?.(selection, humanId);
-      onClose();
-    },
-    [onAssignSpeaker, onClose, selection],
   );
   const handleMouseDown = useCallback((event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -389,52 +420,55 @@ function SelectionFloatingMenu({
         <div
           ref={floatingRef}
           style={{ ...floatingStyles, zIndex: 50 }}
-          className={cn([
-            MENU_CONTAINER_CLASSES,
-            view === "speaker"
-              ? "max-h-[min(28rem,calc(100vh-1rem))] w-80"
-              : "min-w-40",
-          ])}
-          onMouseDown={view === "actions" ? handleMouseDown : undefined}
+          className={cn([MENU_CONTAINER_CLASSES, "min-w-40"])}
+          onMouseDown={handleMouseDown}
         >
-          {view === "actions" ? (
-            <div className="flex flex-col gap-0.5">
-              {selection.sessionId && onAssignSpeaker && (
-                <button
-                  type="button"
-                  className={cn(MENU_BUTTON_CLASSES)}
-                  onClick={() => setView("speaker")}
-                >
-                  <UserSwitch className="size-3.5" />
-                  <Trans>Change speaker</Trans>
-                </button>
-              )}
-              {audioExists && (
-                <button
-                  type="button"
-                  className={cn(MENU_BUTTON_CLASSES)}
-                  onClick={() => handleAction("play")}
-                >
-                  <Play className="size-3.5" />
-                  <Trans>Play from here</Trans>
-                </button>
-              )}
+          <div className="flex flex-col gap-0.5">
+            {onEdit && (
               <button
                 type="button"
                 className={cn(MENU_BUTTON_CLASSES)}
-                onClick={() => handleAction("copy")}
+                onClick={() => {
+                  onClose();
+                  onEdit(selection);
+                }}
               >
-                <span className="w-3.5 text-center">⌘</span>
-                <Trans>Copy</Trans>
+                <Pencil className="size-3.5 shrink-0" />
+                <Trans>Edit</Trans>
               </button>
-            </div>
-          ) : (
-            <SpeakerParticipantPicker
-              sessionId={selection.sessionId}
-              showAssignmentScope={false}
-              onSelect={handleAssign}
-            />
-          )}
+            )}
+            {selection.sessionId && onChangeSpeaker && (
+              <button
+                type="button"
+                className={cn(MENU_BUTTON_CLASSES)}
+                onClick={() => {
+                  onClose();
+                  onChangeSpeaker?.(selection);
+                }}
+              >
+                <UserSwitch className="size-3.5" />
+                <Trans>Change speaker from here</Trans>
+              </button>
+            )}
+            {audioExists && (
+              <button
+                type="button"
+                className={cn(MENU_BUTTON_CLASSES)}
+                onClick={() => handleAction("play")}
+              >
+                <Play className="size-3.5" />
+                <Trans>Play from here</Trans>
+              </button>
+            )}
+            <button
+              type="button"
+              className={cn(MENU_BUTTON_CLASSES)}
+              onClick={() => handleAction("copy")}
+            >
+              <Copy className="size-3.5 shrink-0" />
+              <Trans>Copy</Trans>
+            </button>
+          </div>
         </div>
       </FloatingPortal>
     </>
@@ -517,7 +551,7 @@ function useSelectionMenuState({
   const isVisible = selection !== null;
   const { refs, floatingStyles, update } = useFloating<HTMLElement>({
     open: isVisible,
-    placement: "bottom",
+    placement: "bottom-start",
     strategy: "fixed",
     transform: false,
     middleware: [offset(6), flip(), shift({ padding: 8 })],

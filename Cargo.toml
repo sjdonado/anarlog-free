@@ -28,6 +28,7 @@ anlg-api-auth = { path = "crates/api-auth", package = "api-auth" }
 anlg-api-calendar = { path = "crates/api-calendar", package = "api-calendar" }
 anlg-api-client = { path = "crates/api-client", package = "api-client" }
 anlg-api-cloud = { path = "crates/api-cloud", package = "api-cloud" }
+anlg-api-crm = { path = "crates/api-crm", package = "api-crm" }
 anlg-api-env = { path = "crates/api-env", package = "api-env" }
 anlg-api-error = { path = "crates/api-error", package = "api-error" }
 anlg-api-mail = { path = "crates/api-mail", package = "api-mail" }
@@ -164,6 +165,7 @@ owhisper-client = { path = "crates/owhisper-client", package = "owhisper-client"
 owhisper-interface = { path = "crates/owhisper-interface", package = "owhisper-interface" }
 soniox = { path = "crates/soniox", package = "soniox" }
 
+ashpd = { version = "0.13.13", default-features = false }
 tauri = "2.11.5"
 tauri-build = "2.6.3"
 tauri-plugin = "2.5"
@@ -171,6 +173,7 @@ tauri-plugin-autostart = "2.5"
 tauri-plugin-clipboard-manager = "2.3"
 tauri-plugin-deep-link = "2.4"
 tauri-plugin-dialog = "2.7"
+tauri-plugin-global-shortcut = "2.3.2"
 tauri-plugin-http = { version = "2.5", features = ["unsafe-headers"] }
 tauri-plugin-opener = "2.5"
 tauri-plugin-os = "2.3"

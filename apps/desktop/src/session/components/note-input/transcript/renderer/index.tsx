@@ -8,12 +8,14 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { ArrowDown, ArrowUp } from "@anlg/ui/components/icons";
 import { cn } from "@anlg/utils";
 
 import {
+  focusTranscriptSelection,
   getTranscriptContextSelection,
   getTranscriptMergeTarget,
   getTranscriptSectionKeyFromElement,
@@ -43,6 +45,7 @@ import type { Segment } from "~/stt/live-segment";
 import {
   assignTranscriptSpeaker,
   mergeTranscriptSegments,
+  updateTranscriptSegmentText,
 } from "~/stt/queries";
 
 const LIVE_TRANSCRIPT_PLACEHOLDER_ID = "__live-transcript__";
@@ -54,6 +57,7 @@ export function TranscriptViewer({
   captureGeneration = 0,
   scrollRef,
   editMode = false,
+  onEditModeChange,
 }: {
   transcriptIds: string[];
   liveSegments: Segment[];
@@ -61,6 +65,7 @@ export function TranscriptViewer({
   captureGeneration?: number;
   scrollRef: RefObject<HTMLDivElement | null>;
   editMode?: boolean;
+  onEditModeChange?: (editMode: boolean) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
@@ -167,7 +172,11 @@ export function TranscriptViewer({
     [audioExists, seek, start],
   );
   const handleAssignSpeaker = useCallback(
-    async (selection: TranscriptWordSelection, humanId: string) => {
+    async (
+      selection: TranscriptWordSelection,
+      humanId: string,
+      extendToAdjacent?: boolean,
+    ) => {
       await preserveScrollPosition(containerRef.current, () =>
         Promise.all(
           selection.groups.map((group) =>
@@ -178,6 +187,7 @@ export function TranscriptViewer({
               anchorWordId: group.wordIds[0]!,
               mode: "segment",
               wordIds: group.wordIds,
+              extendToAdjacent,
             }),
           ),
         ),
@@ -191,6 +201,33 @@ export function TranscriptViewer({
       });
     },
     [],
+  );
+  const handleEditSelection = useCallback(
+    (selection: TranscriptWordSelection) => {
+      flushSync(() => onEditModeChange?.(true));
+      if (containerRef.current) {
+        focusTranscriptSelection(selection, containerRef.current);
+      }
+    },
+    [onEditModeChange],
+  );
+  const handleChangeSpeakerSelection = useCallback(
+    (selection: TranscriptWordSelection) => {
+      flushSync(() => onEditModeChange?.(true));
+      const container = containerRef.current;
+      if (!container) return;
+      const editor = focusTranscriptSelection(selection, container);
+      if (!editor) return;
+      window.getSelection()?.collapseToStart();
+      editor.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    },
+    [onEditModeChange],
   );
   const handleMergeSegments = useCallback(async () => {
     const { order, entries } = collectEntries(visibleTranscriptIdsRef.current);
@@ -227,6 +264,29 @@ export function TranscriptViewer({
       ),
     });
   }, [collectEntries, selectedEntries]);
+  const handleDeleteSelection = useCallback(
+    async (selection: TranscriptWordSelection) => {
+      const wordsByTranscript = new Map<string, Set<string>>();
+      for (const group of selection.groups) {
+        const wordIds =
+          wordsByTranscript.get(group.transcriptId) ?? new Set<string>();
+        group.wordIds.forEach((wordId) => wordIds.add(wordId));
+        wordsByTranscript.set(group.transcriptId, wordIds);
+      }
+      await preserveScrollPosition(containerRef.current, () =>
+        Promise.all(
+          [...wordsByTranscript].map(([transcriptId, wordIds]) =>
+            updateTranscriptSegmentText({
+              transcriptId,
+              wordIds: [...wordIds],
+              text: "",
+            }),
+          ),
+        ),
+      );
+    },
+    [],
+  );
   const canMergeSelection = useMemo(() => {
     if (selectedEntries.size < 2) {
       return false;
@@ -285,6 +345,38 @@ export function TranscriptViewer({
       clearSelectedEntries();
     },
     { enabled: editMode && selectedEntries.size > 0 },
+  );
+
+  useHotkeys(
+    "mod+shift+up, mod+shift+down",
+    (event) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest("[data-transcript-editor], [contenteditable=true]")
+      ) {
+        return;
+      }
+      const { order, entries } = collectEntries(
+        visibleTranscriptIdsRef.current,
+      );
+      const anchorIndex = selectionAnchor ? order.indexOf(selectionAnchor) : -1;
+      if (anchorIndex === -1) {
+        return;
+      }
+
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+      const keys =
+        event.key === "ArrowUp"
+          ? order.slice(0, anchorIndex + 1)
+          : order.slice(anchorIndex);
+      setSelectedEntries(new Map(keys.map((key) => [key, entries.get(key)!])));
+    },
+    {
+      enabled: selectedEntries.size > 0,
+      enableOnFormTags: false,
+      enableOnContentEditable: false,
+    },
   );
 
   const handleSegmentSelection = useCallback(
@@ -419,7 +511,10 @@ export function TranscriptViewer({
             audioExists={audioExists}
             onContextClose={handleContextClose}
             onAction={handleSelectionAction}
-            onAssignSpeaker={handleAssignSpeaker}
+            onEdit={onEditModeChange ? handleEditSelection : undefined}
+            onChangeSpeaker={
+              onEditModeChange ? handleChangeSpeakerSelection : undefined
+            }
           />
         </div>
 
@@ -431,6 +526,9 @@ export function TranscriptViewer({
             onClear={clearSelectedEntries}
             onAssignSpeaker={handleAssignSpeaker}
             onMerge={handleMergeSegments}
+            onDelete={
+              editMode && !currentActive ? handleDeleteSelection : undefined
+            }
           />
         )}
 

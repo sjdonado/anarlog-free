@@ -27,7 +27,7 @@ export type WorkspaceSeatUsage = {
   isBilled: boolean;
 };
 
-export const WORKSPACE_CAPABILITIES = [
+const WORKSPACE_CAPABILITIES = [
   "team.shared_notes",
   "team.shared_resources",
   "team.manage_workspace",
@@ -421,7 +421,7 @@ export async function setMemberRole(
   context: TeamContext,
   workspaceId: string,
   userId: string,
-  nextRole: "admin" | "member",
+  nextRole: WorkspaceRole,
 ) {
   assertWorkspaceId(workspaceId);
   assertWorkspaceId(userId);

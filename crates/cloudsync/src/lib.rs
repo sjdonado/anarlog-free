@@ -21,8 +21,9 @@ pub use network::{
     NetworkReceiveResult, NetworkResult, NetworkSendResult, NetworkStatus, NetworkStatusFailures,
     PendingPayloadBatch, network_check_changes, network_cleanup, network_has_unsent_changes,
     network_init, network_logout, network_receive_changes, network_reset_receive_version,
-    network_reset_sync_version, network_send_changes, network_set_apikey, network_set_token,
-    network_status, network_sync, pending_payload_batch, reconcile_confirmed_pending_payload,
+    network_reset_sync_version, network_send_changes, network_send_changes_until,
+    network_set_apikey, network_set_token, network_status, network_sync, pending_payload_batch,
+    reconcile_confirmed_pending_payload,
 };
 
 pub const CLOUDSYNC_VERSION: &str = "1.1.2";
@@ -214,6 +215,526 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn large_pending_backlog_drains_in_complete_version_windows() {
+        let options = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
+        let (options, _) = apply(options).unwrap();
+        let sender = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        let receiver_options = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
+        let (receiver_options, _) = apply(receiver_options).unwrap();
+        let receiver = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(receiver_options)
+            .await
+            .unwrap();
+        for pool in [&sender, &receiver] {
+            sqlx::query(
+                "CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL DEFAULT '')",
+            )
+            .execute(pool)
+            .await
+            .unwrap();
+            init(pool, "items", None, None).await.unwrap();
+        }
+        let mut connection = sender.acquire().await.unwrap();
+        for index in 0..240 {
+            sqlx::query("INSERT INTO items (id, value) VALUES (?, ?)")
+                .bind(index.to_string())
+                .bind(format!("value-{index}"))
+                .execute(&mut *connection)
+                .await
+                .unwrap();
+        }
+
+        let total_rows: i64 = sqlx::query_scalar("SELECT SUM(rows) FROM cloudsync_payload_chunks")
+            .fetch_one(&mut *connection)
+            .await
+            .unwrap();
+        assert!(
+            total_rows > 32,
+            "the old whole-backlog preflight must reject this fixture"
+        );
+        let mut batches = 0;
+        loop {
+            let batch = pending_payload_batch(&mut connection, 8, 32, 32 * 1024 * 1024)
+                .await
+                .unwrap();
+            assert!(
+                batch.fits,
+                "a large backlog must yield a bounded prefix: {batch:?}"
+            );
+            assert!(batch.complete);
+            if batch.chunks == 0 {
+                break;
+            }
+            assert!(batch.rows <= 32);
+            batches += 1;
+            assert!(batches <= 241, "bounded batches stopped making progress");
+            let watermark = batch.watermark_db_version.unwrap();
+            assert!(watermark > batch.start_db_version);
+            if batches == 1 {
+                assert!(batch.remaining);
+                sqlx::query("INSERT INTO items (id, value) VALUES ('late', 'after preflight')")
+                    .execute(&mut *connection)
+                    .await
+                    .unwrap();
+            }
+            let payloads: Vec<Vec<u8>> = sqlx::query_scalar(
+                "SELECT payload FROM cloudsync_payload_chunks
+                 WHERE since_db_version = ? AND until_db_version = ?",
+            )
+            .bind(batch.start_db_version)
+            .bind(watermark)
+            .fetch_all(&mut *connection)
+            .await
+            .unwrap();
+            for payload in payloads {
+                sqlx::query("SELECT cloudsync_payload_apply(?)")
+                    .bind(payload)
+                    .fetch_optional(&receiver)
+                    .await
+                    .unwrap();
+            }
+            let confirmed = NetworkStatus {
+                last_optimistic_version: watermark,
+                last_confirmed_version: watermark,
+                gaps: Vec::new(),
+                failures: NetworkStatusFailures::default(),
+            };
+            assert!(
+                reconcile_confirmed_pending_payload(&mut connection, batch, &confirmed)
+                    .await
+                    .unwrap()
+            );
+        }
+        assert!(batches > 1);
+        let actual: Vec<(String, String)> =
+            sqlx::query_as("SELECT id, value FROM items ORDER BY id")
+                .fetch_all(&receiver)
+                .await
+                .unwrap();
+        let expected: Vec<(String, String)> =
+            sqlx::query_as("SELECT id, value FROM items ORDER BY id")
+                .fetch_all(&mut *connection)
+                .await
+                .unwrap();
+        assert_eq!(actual.len(), 241);
+        assert_eq!(actual, expected);
+        drop(connection);
+        sender.close().await;
+        receiver.close().await;
+    }
+
+    #[tokio::test]
+    async fn pending_version_windows_respect_chunk_and_byte_limits() {
+        let options = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
+        let (options, _) = apply(options).unwrap();
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        let mut connection = pool.acquire().await.unwrap();
+        sqlx::query(
+            "CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL DEFAULT '')",
+        )
+        .execute(&mut *connection)
+        .await
+        .unwrap();
+        init(&mut *connection, "items", None, None).await.unwrap();
+        sqlx::query("SELECT cloudsync_set('payload_max_chunk_size', '262144')")
+            .fetch_optional(&mut *connection)
+            .await
+            .unwrap();
+        for index in 0..8 {
+            sqlx::query("INSERT INTO items (id, value) VALUES (?, ?)")
+                .bind(index.to_string())
+                .bind("x".repeat(200 * 1024))
+                .execute(&mut *connection)
+                .await
+                .unwrap();
+        }
+        let last_version = db_version(&mut *connection).await.unwrap();
+        for (max_chunks, max_bytes) in [(2, u64::MAX), (8, 1_000)] {
+            let batch = pending_payload_batch(&mut connection, max_chunks, u64::MAX, max_bytes)
+                .await
+                .unwrap();
+            assert!(
+                batch.fits && batch.complete && batch.remaining,
+                "limits {max_chunks} / {max_bytes}: {batch:?}"
+            );
+            assert!(batch.chunks > 0 && batch.chunks <= max_chunks);
+            assert!(batch.bytes <= max_bytes);
+            assert!(batch.watermark_db_version.unwrap() < last_version);
+        }
+        drop(connection);
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn single_large_version_retries_after_restart_without_skipping_later_changes() {
+        let directory = tempfile::tempdir().unwrap();
+        let options = SqliteConnectOptions::new()
+            .filename(directory.path().join("sender.db"))
+            .create_if_missing(true);
+        let (options, _) = apply(options).unwrap();
+        let sender = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options.clone())
+            .await
+            .unwrap();
+        let (receiver_options, _) =
+            apply(SqliteConnectOptions::from_str("sqlite::memory:").unwrap()).unwrap();
+        let receiver = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(receiver_options)
+            .await
+            .unwrap();
+        for pool in [&sender, &receiver] {
+            sqlx::query(
+                "CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL DEFAULT '')",
+            )
+            .execute(pool)
+            .await
+            .unwrap();
+            init(pool, "items", None, None).await.unwrap();
+        }
+        // One statement gives every change the same indivisible database version.
+        sqlx::query(
+            "WITH RECURSIVE ids(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM ids WHERE id < 6564)
+             INSERT INTO items SELECT CAST(id AS TEXT), printf('%02048d', id) FROM ids",
+        )
+        .execute(&sender)
+        .await
+        .unwrap();
+        let first_version = db_version(&sender).await.unwrap();
+        let mut connection = sender.acquire().await.unwrap();
+        let only_version = pending_payload_batch(&mut connection, 8, 4096, 32 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert!(only_version.fits && only_version.complete && !only_version.remaining);
+        assert_eq!(only_version.rows, 6564);
+        drop(connection);
+        sqlx::query("INSERT INTO items VALUES ('later', 'keep pending')")
+            .execute(&sender)
+            .await
+            .unwrap();
+        let mut connection = sender.acquire().await.unwrap();
+        let (watermark, final_chunk): (i64, bool) = sqlx::query_as(
+            "SELECT watermark_db_version, is_final FROM cloudsync_payload_chunks WHERE until_db_version = 0 LIMIT 1",
+        )
+        .fetch_one(&mut *connection)
+        .await
+        .unwrap();
+        assert!(!final_chunk);
+        assert!(watermark > first_version);
+        let truncated_scan = pending_payload_batch(&mut connection, 8, 1, 32 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert!(truncated_scan.fits && truncated_scan.complete && truncated_scan.remaining);
+        assert_eq!(truncated_scan.watermark_db_version, Some(first_version));
+        let batch = pending_payload_batch(&mut connection, 8, 4096, 32 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert!(batch.fits && batch.complete && batch.remaining, "{batch:?}");
+        assert_eq!(batch.rows, 6564);
+        assert!(batch.chunks > 1 && batch.chunks <= 8);
+        assert_eq!(batch.watermark_db_version, Some(first_version));
+
+        for (max_chunks, max_bytes) in [(1, 32 * 1024 * 1024), (8, batch.bytes - 1)] {
+            let rejected = pending_payload_batch(&mut connection, max_chunks, 4096, max_bytes)
+                .await
+                .unwrap();
+            assert!(
+                !rejected.fits,
+                "hard limits must still reject: {rejected:?}"
+            );
+        }
+        let payloads: Vec<Vec<u8>> = sqlx::query_scalar(
+            "SELECT payload FROM cloudsync_payload_chunks WHERE until_db_version = ?",
+        )
+        .bind(first_version)
+        .fetch_all(&mut *connection)
+        .await
+        .unwrap();
+        // A chunk can be applied before its acknowledgement is lost.
+        sqlx::query("SELECT cloudsync_payload_apply(?)")
+            .bind(&payloads[0])
+            .fetch_optional(&receiver)
+            .await
+            .unwrap();
+        let mut confirmed = NetworkStatus {
+            last_optimistic_version: first_version,
+            last_confirmed_version: batch.start_db_version,
+            gaps: Vec::new(),
+            failures: NetworkStatusFailures::default(),
+        };
+        assert!(
+            !reconcile_confirmed_pending_payload(&mut connection, batch, &confirmed)
+                .await
+                .unwrap()
+        );
+        drop(connection);
+        sender.close().await;
+        let sender = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        init(&sender, "items", None, None).await.unwrap();
+        let mut connection = sender.acquire().await.unwrap();
+        assert_eq!(
+            pending_payload_batch(&mut connection, 8, 4096, 32 * 1024 * 1024)
+                .await
+                .unwrap(),
+            batch
+        );
+        for payload in payloads {
+            sqlx::query("SELECT cloudsync_payload_apply(?)")
+                .bind(payload)
+                .fetch_optional(&receiver)
+                .await
+                .unwrap();
+        }
+        confirmed.last_confirmed_version = first_version;
+        assert!(
+            reconcile_confirmed_pending_payload(&mut connection, batch, &confirmed)
+                .await
+                .unwrap()
+        );
+        let tail = pending_payload_batch(&mut connection, 8, 4096, 32 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert!(tail.fits && tail.complete && !tail.remaining);
+        assert_eq!(tail.rows, 1);
+        assert_eq!(tail.start_db_version, first_version);
+        let payload: Vec<u8> = sqlx::query_scalar("SELECT payload FROM cloudsync_payload_chunks")
+            .fetch_one(&mut *connection)
+            .await
+            .unwrap();
+        sqlx::query("SELECT cloudsync_payload_apply(?)")
+            .bind(payload)
+            .fetch_optional(&receiver)
+            .await
+            .unwrap();
+        let actual: Vec<(String, String)> =
+            sqlx::query_as("SELECT id, value FROM items ORDER BY id")
+                .fetch_all(&receiver)
+                .await
+                .unwrap();
+        let expected: Vec<(String, String)> =
+            sqlx::query_as("SELECT id, value FROM items ORDER BY id")
+                .fetch_all(&mut *connection)
+                .await
+                .unwrap();
+        assert_eq!(actual.len(), 6565);
+        assert_eq!(actual, expected);
+        drop(connection);
+        sender.close().await;
+        receiver.close().await;
+    }
+
+    #[tokio::test]
+    async fn single_large_version_with_incomplete_chunks_is_rejected() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::query(
+            "CREATE TABLE cloudsync_settings (key TEXT, value TEXT);
+             CREATE TABLE cloudsync_payload_chunks (
+                 payload_size INTEGER, rows INTEGER, watermark_db_version INTEGER,
+                 is_final BOOLEAN, db_version_min INTEGER, until_db_version INTEGER
+             );
+             INSERT INTO cloudsync_payload_chunks VALUES
+                 (1024, 6564, 1, FALSE, 1, 0),
+                 (1024, 6564, 1, FALSE, 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let mut connection = pool.acquire().await.unwrap();
+        let batch = pending_payload_batch(&mut connection, 8, 4096, 32 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert!(!batch.fits && !batch.complete);
+        drop(connection);
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn bounded_native_send_keeps_unsent_versions_and_retries_failed_windows() {
+        use std::io::{BufRead, Read, Write};
+        use std::time::{Duration, Instant};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let endpoint = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let mut requests = Vec::new();
+            while requests.len() < 4 {
+                let (mut stream, _) = match listener.accept() {
+                    Ok(accepted) => accepted,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(
+                            Instant::now() < deadline,
+                            "native send did not reach the mock server"
+                        );
+                        std::thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                    Err(error) => panic!("mock accept failed: {error}"),
+                };
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let mut reader = std::io::BufReader::new(&mut stream);
+                let mut request_line = String::new();
+                reader.read_line(&mut request_line).unwrap();
+                let mut content_length = 0;
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some((name, value)) = line.split_once(':')
+                        && name.eq_ignore_ascii_case("content-length")
+                    {
+                        content_length = value.trim().parse::<usize>().unwrap();
+                    }
+                }
+                assert!(content_length < 128 * 1024);
+                let mut body = vec![0; content_length];
+                reader.read_exact(&mut body).unwrap();
+                drop(reader);
+                let body: serde_json::Value = if body.is_empty() {
+                    assert!(request_line.starts_with("GET "));
+                    serde_json::Value::Null
+                } else {
+                    assert!(request_line.starts_with("POST "));
+                    serde_json::from_slice(&body).unwrap()
+                };
+                let failed = requests.len() == 1;
+                // An acknowledgement ahead of this window must not skip its unsent tail.
+                let version = if failed { 0 } else { 100 };
+                requests.push(body);
+                let response = serde_json::json!({
+                    "lastOptimisticVersion": version,
+                    "lastConfirmedVersion": version,
+                    "gaps": [],
+                })
+                .to_string();
+                let status = if failed {
+                    "503 Service Unavailable"
+                } else {
+                    "200 OK"
+                };
+                write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response}", response.len()).unwrap();
+                stream.flush().unwrap();
+            }
+            requests
+        });
+
+        let options = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
+        let (options, _) = apply(options).unwrap();
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        let mut connection = pool.acquire().await.unwrap();
+        sqlx::query(
+            "CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL DEFAULT '')",
+        )
+        .execute(&mut *connection)
+        .await
+        .unwrap();
+        init(&mut *connection, "items", None, None).await.unwrap();
+        sqlx::query("SELECT cloudsync_network_init_custom(?, ?)")
+            .bind(endpoint)
+            .bind("bounded-send-test")
+            .fetch_optional(&mut *connection)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO items (id, value) VALUES ('first', 'before preflight')")
+            .execute(&mut *connection)
+            .await
+            .unwrap();
+        let first_version = db_version(&mut *connection).await.unwrap();
+        sqlx::query("INSERT INTO items (id, value) VALUES ('later', 'after preflight')")
+            .execute(&mut *connection)
+            .await
+            .unwrap();
+        let last_version = db_version(&mut *connection).await.unwrap();
+
+        let empty = network_send_changes_until(&mut *connection, 0)
+            .await
+            .unwrap()
+            .send
+            .unwrap();
+        assert_eq!(empty.chunks, 0);
+        assert_eq!(empty.status, "out-of-sync");
+        assert_eq!(empty.local_version, last_version);
+        assert!(
+            network_send_changes_until(&mut *connection, first_version)
+                .await
+                .is_err()
+        );
+        let unchanged: String =
+            sqlx::query_scalar("SELECT COALESCE((SELECT value FROM cloudsync_settings WHERE key = 'send_dbversion'), '0')")
+                .fetch_one(&mut *connection)
+                .await
+                .unwrap();
+        assert_eq!(unchanged, "0");
+
+        let first = network_send_changes_until(&mut *connection, first_version)
+            .await
+            .unwrap()
+            .send
+            .unwrap();
+        assert_eq!(first.status, "out-of-sync");
+        assert_eq!(first.local_version, last_version);
+        assert_eq!(first.server_version, 100);
+        assert!(
+            network_send_changes_until(&mut *connection, 0)
+                .await
+                .is_err()
+        );
+        let last = network_send_changes_until(&mut *connection, last_version)
+            .await
+            .unwrap()
+            .send
+            .unwrap();
+        assert_eq!(last.status, "synced");
+        assert_eq!(last.local_version, last_version);
+        assert_eq!(last.server_version, 100);
+
+        let requests = server.join().unwrap();
+        assert!(requests[0].is_null());
+        for request in [&requests[1], &requests[2]] {
+            assert_eq!(request["dbVersionMin"], 1);
+            assert_eq!(request["dbVersionMax"], first_version);
+            assert_eq!(request["isFinal"], true);
+            assert_eq!(request["chunkIndex"], 0);
+        }
+        assert_eq!(requests[3]["dbVersionMin"], first_version + 1);
+        assert_eq!(requests[3]["dbVersionMax"], last_version);
+        assert_eq!(requests[3]["isFinal"], true);
+        drop(connection);
+        pool.close().await;
+    }
+
+    #[tokio::test]
     async fn pending_payload_batch_stops_after_the_first_chunk_over_the_limit() {
         let options = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
         let (options, _) = apply(options).unwrap();
@@ -292,6 +813,7 @@ mod tests {
                 bytes: 0,
                 complete: true,
                 fits: true,
+                remaining: false,
             }
         );
         drop(connection);

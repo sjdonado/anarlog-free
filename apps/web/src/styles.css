@@ -64,17 +64,6 @@
   --color-brand-dark: #57534e;
   --brand-yellow: oklch(0.9484 0.0672 90.6);
 
-  /* ── Colors: blueprint (Nightly) ─────────────── */
-  /* Hue and chroma follow the Blueprint app icon (#0091ff); lightness sits
-     at the brightest point that keeps white body text at WCAG AA (4.7:1).
-     The muted tone falls below AA, so it is for labels and links only. */
-  --color-blueprint: oklch(0.56 0.17 251.5);
-  --color-blueprint-deep: oklch(0.45 0.16 251.5);
-  --color-blueprint-fg: oklch(0.985 0.005 250);
-  --color-blueprint-fg-muted: oklch(0.985 0.005 250 / 0.9);
-  --color-blueprint-line: oklch(1 0 0 / 0.12);
-  --color-blueprint-line-strong: oklch(1 0 0 / 0.24);
-
   /* ── Shadows ─────────────────────────────────── */
   --shadow-ring: 0 0 0 1px var(--color-border);
   --shadow-ring-left: -1px 0 0 1px var(--color-border);
@@ -719,12 +708,13 @@
 
 .blog-prose
   :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  min-width: 100%;
-  width: max-content;
+  width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0 0.25rem;
   font-family: var(--font-sans);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .blog-prose
@@ -756,6 +746,65 @@
     td:first-child):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
   background: #f3eee6;
   font-weight: 600;
+}
+
+.blog-table-label {
+  display: none;
+}
+
+.blog-prose .blog-image-credit {
+  margin-top: -1.25rem;
+  margin-bottom: 2rem;
+  color: color-mix(in srgb, var(--color-brand-dark) 85%, white);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.blog-prose .blog-image-credit a {
+  color: inherit;
+  text-decoration-color: currentColor;
+}
+
+@media (max-width: 40rem) {
+  .blog-prose table[data-mobile-stack],
+  .blog-prose table[data-mobile-stack] tbody,
+  .blog-prose table[data-mobile-stack] tr {
+    display: block;
+    width: 100%;
+  }
+
+  .blog-prose table[data-mobile-stack] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .blog-prose table[data-mobile-stack] tbody tr {
+    margin-bottom: 1rem;
+  }
+
+  .blog-prose table[data-mobile-stack] td,
+  .blog-prose table[data-mobile-stack] tbody th {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+
+  .blog-prose table[data-mobile-stack] td + td {
+    border-top: 2px solid var(--color-surface);
+  }
+
+  .blog-prose table[data-mobile-stack] .blog-table-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
 }
 
 .blog-prose
@@ -1017,28 +1066,6 @@
 
 .brand-yellow {
   background-color: var(--brand-yellow);
-}
-
-/* Drafting-paper grid: fine cells with a stronger line every fifth cell. */
-.blueprint {
-  color: var(--color-blueprint-fg);
-  background-color: var(--color-blueprint);
-  background-image:
-    radial-gradient(
-      ellipse 80% 55% at 50% 0%,
-      var(--color-blueprint-line) 0%,
-      transparent 70%
-    ),
-    linear-gradient(var(--color-blueprint-line-strong) 1px, transparent 1px),
-    linear-gradient(
-    90deg,
-    var(--color-blueprint-line-strong) 1px,
-    transparent 1px
-  ),
-    linear-gradient(var(--color-blueprint-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-blueprint-line) 1px, transparent 1px);
-  background-size: 100% 100%, 120px 120px, 120px 120px, 24px 24px, 24px 24px;
-  background-position: 0 0, -1px -1px, -1px -1px, -1px -1px, -1px -1px;
 }
 
 .text-color {

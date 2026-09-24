@@ -11,9 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@anlg/ui/components/ui/select";
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import { toast } from "@anlg/ui/components/ui/toast";
 import { cn } from "@anlg/utils";
 
+import { MarkdownExportOptionsConfig } from "./markdown-export-options";
 import {
   AutomationLastRunLine,
   LinearIssuesConfig,
@@ -22,6 +23,7 @@ import {
   SlackRecapConfig,
 } from "./starter-config";
 
+import { DEFAULT_MARKDOWN_EXPORT_OPTIONS } from "~/automations/markdown-export";
 import {
   createWorkflowStep,
   isWorkflowReady,
@@ -192,10 +194,16 @@ function WorkflowStepConfig({
 }) {
   if (step.type === "markdown_export") {
     return (
-      <MarkdownExportConfig
-        value={step.directory}
-        onChange={(directory) => onChange({ ...step, directory })}
-      />
+      <>
+        <MarkdownExportConfig
+          value={step.directory}
+          onChange={(directory) => onChange({ ...step, directory })}
+        />
+        <MarkdownExportOptionsConfig
+          options={step.options ?? DEFAULT_MARKDOWN_EXPORT_OPTIONS}
+          onChange={(options) => onChange({ ...step, options })}
+        />
+      </>
     );
   }
   if (step.type === "slack_recap") {
@@ -343,6 +351,6 @@ export function useSaveWorkflow() {
           : [next, ...workflows],
       );
     },
-    onError: () => sonnerToast.error(t`Could not update the automation`),
+    onError: () => toast.error(t`Could not update the automation`),
   });
 }

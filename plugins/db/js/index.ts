@@ -347,6 +347,16 @@ export async function startCloudsync(): Promise<void> {
   return invoke("plugin:db|start_cloudsync");
 }
 
+export async function connectLocalLibrary(
+  accountUserId: string,
+  expectedLibraryWorkspaceId: string,
+): Promise<void> {
+  return invoke("plugin:db|connect_local_library", {
+    accountUserId,
+    expectedLibraryWorkspaceId,
+  });
+}
+
 export async function stopCloudsync(): Promise<void> {
   return invoke("plugin:db|stop_cloudsync");
 }
@@ -404,22 +414,29 @@ export async function subscribe<T = Record<string, unknown>>(
   const channel = new Channel<QueryEvent<T>>();
 
   channel.onmessage = (event) => {
-    if (event.event === "result") {
-      options.onData(event.data);
-      return;
-    }
+    try {
+      if (event.event === "result") {
+        options.onData(event.data);
+        return;
+      }
 
-    options.onError?.(event.data);
+      options.onError?.(event.data);
+    } catch (error) {
+      console.error("[plugin-db] live query callback failed", error);
+    }
   };
 
-  const registration: SubscriptionRegistration = await invoke(
-    "plugin:db|subscribe",
-    {
+  let registration: SubscriptionRegistration;
+  try {
+    registration = await invoke("plugin:db|subscribe", {
       sql,
       params,
       onEvent: channel,
-    },
-  );
+    });
+  } catch (error) {
+    channel.onmessage = () => {};
+    throw error;
+  }
 
   if (registration.analysis.kind === "non_reactive") {
     console.warn(

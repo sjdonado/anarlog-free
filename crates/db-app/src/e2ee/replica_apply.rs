@@ -90,7 +90,7 @@ pub(super) async fn apply_received_e2ee_replica_changes_with_witness_bounded(
     is_cancelled: &(impl Fn() -> bool + Sync),
 ) -> E2eeReplicaResult<E2eeReplicaStats> {
     check_e2ee_apply_cancellation(is_cancelled)?;
-    let repair_remaining = if snapshot_complete {
+    let repair = if snapshot_complete {
         repair_e2ee_replica_from_witness_bounded_cancellable(
             pool,
             keys,
@@ -100,9 +100,11 @@ pub(super) async fn apply_received_e2ee_replica_changes_with_witness_bounded(
             is_cancelled,
         )
         .await?
-        .remaining
     } else {
-        false
+        super::E2eeWitnessRepairOutcome {
+            repaired_records: 0,
+            remaining: false,
+        }
     };
     check_e2ee_apply_cancellation(is_cancelled)?;
     let mut stats = apply_e2ee_replica_changes_inner(
@@ -115,7 +117,9 @@ pub(super) async fn apply_received_e2ee_replica_changes_with_witness_bounded(
     )
     .await?;
     check_e2ee_apply_cancellation(is_cancelled)?;
-    stats.remaining_replica_changes |= repair_remaining;
+    stats.repaired_witness_records = repair.repaired_records;
+    stats.remaining_witness_repairs = repair.remaining;
+    stats.remaining_replica_changes |= repair.remaining;
     Ok(stats)
 }
 
@@ -621,6 +625,14 @@ pub(super) async fn apply_e2ee_replica_changes_inner(
                 upsert_local_state(&mut transaction, &state).await?;
                 rollback_if_cancelled!(transaction, is_cancelled);
                 stats.applied_fields += 1;
+                super::library::queue_other_connections(
+                    &mut transaction,
+                    &workspace_id,
+                    &table,
+                    &row_id,
+                    state.edited_at_ms.unwrap_or(0),
+                )
+                .await?;
                 remove_apply_guard(&mut transaction, &workspace_id, &table, &row_id).await?;
                 rollback_if_cancelled!(transaction, is_cancelled);
                 delete_reconciled_replica_entries_in_transaction(&mut transaction, &pending)
@@ -635,6 +647,9 @@ pub(super) async fn apply_e2ee_replica_changes_inner(
                 rollback_if_cancelled!(transaction, is_cancelled);
                 if !row_exists(&mut transaction, &table, &workspace_id, &row_id).await? {
                     rollback_if_cancelled!(transaction, is_cancelled);
+                    // Another workspace owns this row ID. Let hydration yield
+                    // instead of retrying the unchanged pending record forever.
+                    stats.skipped_local_changes += records.len() as u64 + 1;
                     remove_apply_guard(&mut transaction, &workspace_id, &table, &row_id).await?;
                     rollback_if_cancelled!(transaction, is_cancelled);
                     commit_e2ee_apply_transaction(transaction, is_cancelled).await?;
@@ -721,6 +736,17 @@ pub(super) async fn apply_e2ee_replica_changes_inner(
                 || record.field.deleted
             {
                 return Err(E2eeReplicaError::InvalidField);
+            }
+            // Chunk hydration retires the legacy field's state. Only apply that
+            // field again for a queued update, not while retrying another field.
+            if !row_materialized
+                && !selected_generations.contains_key(&record.record_id)
+                && states.values().any(|state| {
+                    parse_chunk_field(&table, &state.field_name)
+                        .is_some_and(|(column, _)| column == field_name)
+                })
+            {
+                continue;
             }
             if !row_materialized
                 && states
@@ -892,9 +918,12 @@ pub(super) async fn apply_e2ee_replica_changes_inner(
                 republish_merged_row = true;
                 stats.merged_fields += 1;
             }
-            // A whole-column record from an older build was honoured; this
-            // build re-seals the column as chunks so current builds converge.
-            if chunk_size_for(&table, field_name).is_some() {
+            // Preserve the row's existing wire format. Introducing chunks here
+            // would make an otherwise compatible row unreadable by 1.4.23.
+            if states.values().any(|state| {
+                parse_chunk_field(&table, &state.field_name)
+                    .is_some_and(|(column, _)| column == field_name)
+            }) {
                 republish_merged_row = true;
             }
             let value_tag =
@@ -935,6 +964,7 @@ pub(super) async fn apply_e2ee_replica_changes_inner(
             match outcome {
                 ChunkedColumnOutcome::Deferred(record_ids) => {
                     stats.skipped_local_changes += record_ids.len() as u64;
+                    stats.incomplete_chunk_columns += 1;
                     deferred_pending_ids.extend(record_ids);
                 }
                 ChunkedColumnOutcome::Applied {
@@ -954,14 +984,29 @@ pub(super) async fn apply_e2ee_replica_changes_inner(
             queue_dirty_row(&mut transaction, &workspace_id, &table, &row_id).await?;
             rollback_if_cancelled!(transaction, is_cancelled);
         }
-        remove_apply_guard(&mut transaction, &workspace_id, &table, &row_id).await?;
-        rollback_if_cancelled!(transaction, is_cancelled);
-        pending.retain(|(record_id, _)| !deferred_pending_ids.contains(record_id));
-        crate::session_deletion::reconcile_session_deletion(
+        let edited_at_ms = states
+            .values()
+            .filter_map(|state| state.edited_at_ms)
+            .max()
+            .unwrap_or(0);
+        super::library::queue_other_connections(
             &mut transaction,
             &workspace_id,
             &table,
             &row_id,
+            edited_at_ms,
+        )
+        .await?;
+        remove_apply_guard(&mut transaction, &workspace_id, &table, &row_id).await?;
+        rollback_if_cancelled!(transaction, is_cancelled);
+        pending.retain(|(record_id, _)| !deferred_pending_ids.contains(record_id));
+        let identity =
+            super::library::LibraryIdentity::load(&mut *transaction, &workspace_id).await?;
+        crate::session_deletion::reconcile_session_deletion(
+            &mut transaction,
+            &identity.local_workspace_id,
+            &table,
+            identity.local_row_id(&table, &row_id),
         )
         .await?;
         rollback_if_cancelled!(transaction, is_cancelled);

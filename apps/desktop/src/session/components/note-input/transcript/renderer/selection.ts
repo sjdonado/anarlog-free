@@ -3,6 +3,7 @@ import type { Segment, SegmentKey } from "~/stt/live-segment";
 export type TranscriptWordSelectionGroup = {
   transcriptId: string;
   segmentKey: SegmentKey;
+  inferredHumanId?: string;
   wordIds: string[];
 };
 
@@ -184,7 +185,7 @@ export function getTranscriptSelectionFromSegment({
   transcriptId: string;
   sessionId?: string;
   offsetMs: number;
-  segment: Pick<Segment, "key" | "text" | "words">;
+  segment: Pick<Segment, "key" | "text" | "words" | "provisional_speaker">;
 }): TranscriptWordSelection | null {
   const wordIds = segment.words
     .map((word) => word.id)
@@ -204,6 +205,9 @@ export function getTranscriptSelectionFromSegment({
       {
         transcriptId,
         segmentKey: segment.key,
+        ...(segment.provisional_speaker?.human_id
+          ? { inferredHumanId: segment.provisional_speaker.human_id }
+          : {}),
         wordIds,
       },
     ],
@@ -301,6 +305,7 @@ export function getTranscriptMergeTarget(
   }
   if (
     !targetGroup.segmentKey.speaker_human_id &&
+    !targetGroup.inferredHumanId &&
     typeof targetGroup.segmentKey.speaker_index !== "number"
   ) {
     return null;
@@ -317,6 +322,20 @@ export function getTranscriptMergeTarget(
     }
   }
 
+  if (!targetGroup.segmentKey.speaker_human_id && targetGroup.inferredHumanId) {
+    return {
+      ...first,
+      groups: [
+        {
+          ...targetGroup,
+          segmentKey: {
+            ...targetGroup.segmentKey,
+            speaker_human_id: targetGroup.inferredHumanId,
+          },
+        },
+      ],
+    };
+  }
   return first;
 }
 
@@ -523,4 +542,74 @@ function appendLineRect(rects: DOMRect[], rect: DOMRect) {
     Math.max(last.right, rect.right) - last.left,
     last.height,
   );
+}
+
+export function focusTranscriptSelection(
+  selection: TranscriptWordSelection,
+  container: HTMLElement,
+) {
+  const group = selection.groups[0];
+  if (!group) return;
+  for (const editor of container.querySelectorAll<HTMLElement>(
+    "[data-transcript-editor]",
+  )) {
+    if (
+      editor.closest<HTMLElement>("[data-transcript-id]")?.dataset
+        .transcriptId !== group.transcriptId
+    )
+      continue;
+    const ids = parseStringArray(editor.dataset.transcriptEditWordIds);
+    const start = ids.indexOf(group.wordIds[0]);
+    if (start < 0) continue;
+    const texts = parseStringArray(editor.dataset.transcriptEditWordTexts);
+    const end = Math.max(
+      start,
+      ids.indexOf(group.wordIds[group.wordIds.length - 1]),
+    );
+    editor.focus({ preventScroll: true });
+    const text = editor.firstChild;
+    if (text?.nodeType === Node.TEXT_NODE) {
+      const range = document.createRange();
+      const startOffset =
+        texts.slice(0, start).join(" ").length + (start > 0 ? 1 : 0);
+      const endOffset = texts.slice(0, end + 1).join(" ").length;
+      range.setStart(
+        text,
+        Math.min(startOffset, text.textContent?.length ?? 0),
+      );
+      range.setEnd(text, Math.min(endOffset, text.textContent?.length ?? 0));
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(range);
+    }
+    return editor;
+  }
+}
+
+export function getTranscriptSelectionFromHere(
+  selection: TranscriptWordSelection,
+  entries: Iterable<TranscriptWordSelection>,
+): TranscriptWordSelection | null {
+  const anchor = selection.groups[0];
+  if (!anchor) return null;
+  for (const entry of entries) {
+    const group = entry.groups.find(
+      (group) =>
+        group.transcriptId === anchor.transcriptId &&
+        group.wordIds.includes(anchor.wordIds[0]),
+    );
+    if (group) {
+      return {
+        ...entry,
+        groups: [
+          {
+            ...group,
+            wordIds: group.wordIds.slice(
+              group.wordIds.indexOf(anchor.wordIds[0]),
+            ),
+          },
+        ],
+      };
+    }
+  }
+  return null;
 }

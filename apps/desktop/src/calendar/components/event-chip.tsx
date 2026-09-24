@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro";
 import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useCallback, useMemo } from "react";
@@ -20,6 +21,7 @@ import {
   type MenuItemDef,
   useNativeContextMenu,
 } from "~/shared/hooks/useNativeContextMenu";
+import { useTimeFormat } from "~/shared/hooks/useTimeFormat";
 import type { TimelineEventRow } from "~/sidebar/timeline/utils";
 import { useTabs } from "~/store/zustand/tabs";
 
@@ -31,15 +33,16 @@ export function EventChip({
   event: TimelineEventRow | undefined;
 }) {
   const tz = useTimezone();
+  const timeFormat = useTimeFormat();
   const { ignoreEvent, ignoreSeries } = useIgnoredEvents();
-  const title = event?.title ?? undefined;
+  const title = event?.title || t`Busy`;
   const trackingId = event?.tracking_id_event ?? undefined;
   const recurrenceSeriesId = event?.recurrence_series_id ?? undefined;
   const isAllDay = !!event?.is_all_day;
   const color = event?.calendar_color || "#888";
 
   const startedAt = event?.started_at
-    ? format(toTz(event.started_at, tz), "h:mm a")
+    ? format(toTz(event.started_at, tz), timeFormat)
     : null;
 
   const handleIgnore = useCallback(() => {
@@ -79,7 +82,7 @@ export function EventChip({
   }, [recurrenceSeriesId, handleIgnore, handleIgnoreSeries]);
   const showContextMenu = useNativeContextMenu(contextMenu);
 
-  if (!event || !title) {
+  if (!event) {
     return null;
   }
 
@@ -157,7 +160,7 @@ function EventPopoverContent({
     <div className="flex flex-col gap-3 p-4">
       <EventDisplay
         event={{
-          title: event.title ?? undefined,
+          title: event.title || t`Busy`,
           startedAt: event.started_at ?? undefined,
           endedAt: event.ended_at ?? undefined,
           location: event.location ?? undefined,

@@ -35,6 +35,10 @@ image for rollback after moving the Stripe destination. The Bun supervisor drain
 requests before stopping webhooks and awaiting claimed seat work.
 Billing secrets include DATABASE_URL and STRIPE_WEBHOOK_SECRET from
 `/anarlog/stripe-sync`; LOOPS_API_KEY comes from the API view LOOPS_KEY.
+Optional SLACK_ALERT_ANARLOG_WEBHOOK_URL and SLACK_ALERT_CHAR_WEBHOOK_URL from the
+same path announce new Stripe customers in each product's channel. Deploys only
+import secrets and never unset them, so stop an alert by revoking its webhook in
+the Fastrepl Alerts Slack app or with `flyctl secrets unset`.
 Core retains the existing subscription configuration for account deletion and SCIM.
 
 All roles require Supabase configuration. Only `ai` and `all` require
@@ -49,7 +53,7 @@ existing URLs working while clients and webhook providers migrate.
 Standalone profiles are `fly.ai.toml` (`anarlog-inference`),
 `fly.sync.toml` (`anarlog-sync`), `fly.core.toml` (`anarlog-core`), and
 `fly.billing.toml` (`anarlog-billing-api`). The default `fly.toml` and
-`fly.gateway.toml` route public and legacy custom domains through `anarlog-ai`
+`fly.gateway.toml` route public and legacy custom domains through `anarlog-gateway`
 to these services. Keep domain certificates and DNS routing on this shared gateway.
 Core owns durable cleanup; other profiles disable it. Never transfer cleanup
 ownership until the previous owner's worker has stopped.

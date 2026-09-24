@@ -13,7 +13,6 @@ import {
 } from "@anlg/plugin-db";
 import type { CloudsyncActivityEntry } from "@anlg/plugin-db";
 import { commands as openerCommands } from "@anlg/plugin-opener2";
-import { commands as settingsCommands } from "@anlg/plugin-settings";
 import {
   ArrowsClockwise,
   CaretDown,
@@ -42,10 +41,10 @@ import {
 } from "@anlg/ui/components/ui/dialog";
 import { Input } from "@anlg/ui/components/ui/input";
 import { Switch } from "@anlg/ui/components/ui/switch";
+import { toast } from "@anlg/ui/components/ui/toast";
 import { cn, formatDistanceToNow } from "@anlg/utils";
 
 import { E2eeSetupDialog } from "../general/e2ee-setup";
-import { detectCloudStorageService } from "../general/storage/path-utils";
 import { SyncHealthSection } from "./health";
 
 import { trackAnalyticsEvent } from "~/analytics";
@@ -58,6 +57,7 @@ import {
   subscribeCloudsyncCredentialBlock,
 } from "~/auth/cloudsync";
 import { getDeviceIdentity } from "~/auth/cloudsync-credentials";
+import { ConnectLocalLibraryDialog } from "~/auth/connect-local-library-dialog";
 import {
   registerDeviceEnrollment,
   removeSyncDevice,
@@ -75,10 +75,10 @@ import {
 } from "~/settings/queries";
 import { resolveConfigValue } from "~/shared/config";
 import { isKeychainAccessError, repairKeychainAccess } from "~/shared/keychain";
+import { buildWebAppUrl } from "~/shared/utils";
 import { useTabs } from "~/store/zustand/tabs";
 
 const STATUS_POLL_INTERVAL_MS = 10_000;
-const SYNC_GUIDE_URL = "https://docs.anarlog.so/sync";
 
 async function readE2eeIdentityStatus(accountUserId: string) {
   try {
@@ -400,6 +400,7 @@ function SyncSettingsPreview() {
 }
 
 export function SettingsSync() {
+  const [connectLibraryOpen, setConnectLibraryOpen] = useState(false);
   const { t } = useLingui();
   const auth = useAuth();
   const { isPro, isReady } = useBillingAccess();
@@ -472,10 +473,20 @@ export function SettingsSync() {
       if (credentialBlock === "device_limit") {
         const result = await refreshCloudsyncForSession(session!);
         if (result === "account_mismatch") {
-          await auth.signOut();
+          setConnectLibraryOpen(true);
         }
       }
     },
+  });
+  const openMoreDevicesMutation = useMutation({
+    mutationFn: async () => {
+      const url = new URL(
+        await buildWebAppUrl("/app/account", { tab: "connections" }),
+      );
+      url.hash = "devices";
+      await openerCommands.openUrl(url.toString(), null);
+    },
+    onError: () => toast.error(t`Couldn't open device add-ons. Try again.`),
   });
   const renameDeviceMutation = useMutation({
     mutationFn: ({
@@ -534,7 +545,7 @@ export function SettingsSync() {
       });
       const result = await refreshCloudsyncForSession(session!);
       if (result === "account_mismatch") {
-        await auth.signOut();
+        setConnectLibraryOpen(true);
       }
     },
     onSuccess: () =>
@@ -542,26 +553,13 @@ export function SettingsSync() {
         queryKey: ["sync-devices", session?.user.id],
       }),
   });
-  const vaultBaseQuery = useQuery({
-    queryKey: ["vault-base-path"],
-    queryFn: async () => {
-      const result = await settingsCommands.vaultBase();
-      if (result.status === "error") {
-        throw new Error(result.error);
-      }
-      return result.data;
-    },
-  });
-  const cloudStorageService = vaultBaseQuery.data
-    ? detectCloudStorageService(vaultBaseQuery.data)
-    : null;
   const setSyncEnabledMutation = useMutation({
     mutationKey: ["cloudsync-preference"],
     mutationFn: async (enabled: boolean) => {
       await setSettingValue("cloud_sync_enabled", enabled);
       const result = await applyCloudsyncPreference(session);
       if (result === "account_mismatch") {
-        await auth.signOut();
+        setConnectLibraryOpen(true);
       }
       return result;
     },
@@ -802,7 +800,7 @@ export function SettingsSync() {
         return {
           kind: "error" as const,
           label: t`Device limit reached`,
-          description: t`Choose a device below to replace, then this device will continue automatically.`,
+          description: t`Choose a device below to replace, or add more device slots to your plan. This device will continue automatically.`,
         };
       }
       if (credentialBlock === "clock_skew") {
@@ -1055,41 +1053,6 @@ export function SettingsSync() {
         </div>
       </section>
 
-      {cloudStorageService && (
-        <section className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-              <Warning className="size-4 text-amber-500" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-sm font-medium">
-                <Trans>
-                  Your storage location is inside {cloudStorageService}
-                </Trans>
-              </h3>
-              <p className="text-muted-foreground mt-1 text-xs leading-5">
-                <Trans>
-                  Cloud sync and {cloudStorageService} can both change the same
-                  files, which can create conflicted copies and incomplete
-                  recordings. Move your Anarlog storage location to a folder
-                  that {cloudStorageService} does not sync.
-                </Trans>
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                onClick={() =>
-                  void openerCommands.openUrl(SYNC_GUIDE_URL, null)
-                }
-              >
-                <Trans>Learn more</Trans>
-              </Button>
-            </div>
-          </div>
-        </section>
-      )}
-
       <section>
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="font-sans text-lg font-semibold">
@@ -1100,14 +1063,28 @@ export function SettingsSync() {
               </span>
             )}
           </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAddDeviceOpen(true)}
-          >
-            <Plus className="size-3.5" />
-            <Trans>Add device</Trans>
-          </Button>
+          <div className="flex items-center gap-2">
+            {devicesQuery.data &&
+              (usedDeviceSlots >= devicesQuery.data.maxDevices ||
+                credentialBlock === "device_limit") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={openMoreDevicesMutation.isPending}
+                  onClick={() => openMoreDevicesMutation.mutate()}
+                >
+                  <Trans>Get more slots</Trans>
+                </Button>
+              )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAddDeviceOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              <Trans>Add device</Trans>
+            </Button>
+          </div>
         </div>
         <div className="border-border/60 divide-border/60 divide-y overflow-hidden rounded-xl border">
           {devicesQuery.isPending && (
@@ -1345,6 +1322,19 @@ export function SettingsSync() {
         </div>
       </section>
 
+      <ConnectLocalLibraryDialog
+        key={session.user.id}
+        open={connectLibraryOpen}
+        onOpenChange={setConnectLibraryOpen}
+        accountUserId={session.user.id}
+        email={session.user.email ?? "this account"}
+        onConnected={async () => {
+          const current = await auth.getSessionForRequest();
+          if (current?.user.id !== session.user.id) return;
+          await applyCloudsyncPreference(current);
+          await queryClient.invalidateQueries({ queryKey: statusQueryKey });
+        }}
+      />
       <E2eeSetupDialog
         open={e2eeSetupOpen}
         onOpenChange={setE2eeSetupOpen}

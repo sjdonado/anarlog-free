@@ -20,7 +20,7 @@ import {
   type LiveTranscriptSegment,
   type LiveTranscriptSegmentDelta,
 } from "@anlg/plugin-transcription";
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import { toast } from "@anlg/ui/components/ui/toast";
 
 import {
   type GeneralState,
@@ -51,6 +51,11 @@ import { getSessionResourcePath } from "~/session/resource-path";
 import { isAppStoreBuild } from "~/shared/app-store";
 import { fromResult } from "~/stt/fromResult";
 import { recordDetectedMeetingApps } from "~/stt/meeting-source-apps";
+import {
+  startSpeakerContextCapture,
+  observeSpeakerMicrophone,
+  stopSpeakerContextCapture,
+} from "~/stt/speaker-context-capture";
 
 type EventListeners = {
   lifecycle: (payload: CaptureLifecycleEvent) => void;
@@ -203,11 +208,11 @@ const clearLiveInterval = (intervalId?: LiveIntervalId) => {
 };
 
 const notifyTranscriptionStalled = () => {
-  sonnerToast.warning("Live transcription stalled", {
+  toast.warning("Live transcription stalled", {
     id: "live-transcription-stalled",
     duration: Infinity,
     description:
-      "Anarlog keeps recording while live transcription reconnects. Any missing text will be rebuilt from the recording after you stop listening.",
+      "Anarlog keeps recording while live transcription reconnects. Missing text will be recovered from temporary audio while the meeting continues.",
   });
 };
 
@@ -247,6 +252,7 @@ const createSessionEventHandlers = <T extends LiveStore>(
     }
 
     if (payload.type === "started") {
+      startSpeakerContextCapture(targetSessionId);
       const currentLive = get().live;
 
       if (currentLive.status === "active" && currentLive.intervalId) {
@@ -282,6 +288,7 @@ const createSessionEventHandlers = <T extends LiveStore>(
     }
 
     if (payload.type === "finalizing") {
+      void stopSpeakerContextCapture(targetSessionId);
       setLiveState(set, (live) => {
         if (live.sessionId === targetSessionId) {
           clearLiveInterval(live.intervalId);
@@ -291,6 +298,7 @@ const createSessionEventHandlers = <T extends LiveStore>(
       return;
     }
 
+    void stopSpeakerContextCapture(targetSessionId);
     const currentLive = get().live;
     const stoppedSeconds =
       currentLive.sessionId === targetSessionId
@@ -346,6 +354,9 @@ const createSessionEventHandlers = <T extends LiveStore>(
       try {
         const stopped = onStopped(targetSessionId, {
           durationSeconds: stoppedSeconds,
+          chunkedAudio: payload.chunked_audio,
+          audioDeletionFailed:
+            payload.error?.includes("audio_deletion_failed:") ?? false,
           audioPath: payload.audio_path ?? null,
           requestedLiveTranscription: payload.requested_live_transcription,
           liveTranscriptionActive: payload.live_transcription_active,
@@ -375,6 +386,36 @@ const createSessionEventHandlers = <T extends LiveStore>(
       return;
     }
 
+    if (
+      payload.type === "audio_error" &&
+      payload.error.startsWith("audio_storage_")
+    ) {
+      setLiveState(set, (live) => updateLiveProgress(live, payload));
+      toast.error("Audio saving was interrupted", {
+        id: `audio-storage-${targetSessionId}`,
+        duration: Infinity,
+        description:
+          "Live transcription continues. Free up disk space to resume audio saving. Audio missing during this interruption cannot be recovered.",
+      });
+      return;
+    }
+
+    if (
+      payload.type === "audio_error" &&
+      !payload.is_fatal &&
+      payload.error === "recording_recovered"
+    ) {
+      toast.warning("The previous recording needs recovery", {
+        id: `recording-recovered-${targetSessionId}`,
+        duration: Infinity,
+        description:
+          "The unreadable audio was preserved in this note's folder as an audio.recovery-*.wav file. New audio will be recorded separately. Your transcript is unchanged.",
+      });
+      return;
+    }
+
+    if (payload.type === "audio_ready")
+      observeSpeakerMicrophone(targetSessionId, { device: payload.device });
     setLiveState(set, (live) => {
       updateLiveProgress(live, payload);
     });
@@ -384,6 +425,14 @@ const createSessionEventHandlers = <T extends LiveStore>(
       return;
     }
 
+    if (
+      payload.type === "mic_isolated" &&
+      get().live.sessionId === targetSessionId &&
+      (get().live.status === "active" || get().live.loading)
+    ) {
+      observeSpeakerMicrophone(targetSessionId, { isolated: payload.value });
+      return;
+    }
     if (payload.type === "audio_amplitude") {
       if (get().live.sessionId !== targetSessionId) {
         return;
@@ -408,7 +457,7 @@ const createSessionEventHandlers = <T extends LiveStore>(
               currentLive.transcriptionStalled)))
       ) {
         if (hasFinalWords && currentLive.transcriptionStalled) {
-          sonnerToast.dismiss("live-transcription-stalled");
+          toast.dismiss("live-transcription-stalled");
         }
         setLiveState(set, (live) => {
           noteLiveTranscriptActivity(live, {
@@ -539,6 +588,7 @@ export const startLiveSession = <T extends LiveStore>(
           delete live.eventUnlistenersBySession[targetSessionId];
           markLiveStartFailed(live, targetSessionId, error);
         });
+        void stopSpeakerContextCapture(targetSessionId);
         return false;
       },
       onSuccess: (micUsingApps) => {
@@ -773,6 +823,7 @@ function applyCaptureSnapshot<T extends LiveStore>(
     snapshot.state === "active" &&
     snapshot.activeSessionId === targetSessionId
   ) {
+    startSpeakerContextCapture(targetSessionId);
     const currentLive = get().live;
     if (currentLive.sessionId !== targetSessionId) {
       clearLiveInterval(currentLive.intervalId);

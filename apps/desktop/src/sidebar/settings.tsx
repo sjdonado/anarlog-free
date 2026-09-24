@@ -2,15 +2,14 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useState } from "react";
 
 import {
-  ArrowUpRight,
   ArrowsClockwise,
   Bell,
   BookOpen,
-  Brain,
+  Buildings,
   CalendarDots,
-  ChartBar,
   ChartLineUp,
   Code,
+  CreditCard,
   DownloadSimple,
   FileText,
   FolderSimple,
@@ -19,7 +18,9 @@ import {
   type Icon,
   Lock,
   MagnifyingGlass,
+  Microphone,
   ShieldCheck,
+  Sparkle,
   Sun,
   User,
   Users,
@@ -71,7 +72,12 @@ export function SettingsNav() {
 
   const requestedTab =
     currentTab?.type === "settings" ? (currentTab.state.tab ?? "app") : "app";
-  const activeTab = requestedTab === "audio" ? "meetings" : requestedTab;
+  const activeTab =
+    requestedTab === "audio"
+      ? "meetings"
+      : requestedTab === "stats"
+        ? "insights"
+        : requestedTab;
 
   const setActiveTab = useCallback(
     (tab: SettingsTab) => {
@@ -88,13 +94,19 @@ export function SettingsNav() {
       items: [
         { id: "app", label: t`General`, icon: Gear },
         { id: "account", label: t`Account`, icon: User },
-        { id: "stats", label: t`Stats`, icon: ChartBar },
+        { id: "billing", label: t`Billing`, icon: CreditCard },
         { id: "insights", label: t`Insights`, icon: ChartLineUp },
         {
           id: "team",
           label: t`Teams`,
           icon: UsersThree,
           requiresPro: !workspaces.isLoading && !hasExistingWorkspace,
+        },
+        {
+          id: "sync",
+          label: t`Sync`,
+          icon: ArrowsClockwise,
+          requiresPro: true,
         },
         { id: "appearance", label: t`Appearance`, icon: Sun },
         { id: "notifications", label: t`Notifications`, icon: Bell },
@@ -104,7 +116,13 @@ export function SettingsNav() {
       label: "AI",
       items: [
         { id: "transcription", label: t`Transcription`, icon: Waveform },
-        { id: "intelligence", label: t`Intelligence`, icon: Brain },
+        {
+          id: "dictation",
+          label: t`Dictation`,
+          icon: Microphone,
+          requiresPro: true,
+        },
+        { id: "intelligence", label: t`Intelligence`, icon: Sparkle },
         {
           id: "dictionary",
           label: t`Dictionary`,
@@ -153,13 +171,8 @@ export function SettingsNav() {
     {
       label: t`Data`,
       items: [
-        {
-          id: "sync",
-          label: t`Sync`,
-          icon: ArrowsClockwise,
-          requiresPro: true,
-        },
         { id: "imports", label: t`Imports`, icon: DownloadSimple },
+        { id: "crm", label: t`CRM`, icon: Buildings },
       ],
     },
     {
@@ -247,7 +260,7 @@ export function SettingsNav() {
         </div>
       </div>
       <div className="scrollbar-hide flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-5 pb-2">
+        <div className="flex flex-col gap-5 pb-6">
           {visibleGroups.length === 0 ? (
             <div className="text-muted-foreground px-3 py-8 text-center">
               <MagnifyingGlass
@@ -300,12 +313,6 @@ export function SettingsNav() {
                           <Lock
                             aria-label={t`Requires Anarlog Pro`}
                             className="size-3.5 shrink-0"
-                          />
-                        ) : "destination" in item ? (
-                          <ArrowUpRight
-                            aria-hidden
-                            className="text-muted-foreground/70 size-3.5 shrink-0"
-                            data-testid={`settings-nav-destination-icon-${item.id}`}
                           />
                         ) : null}
                       </span>

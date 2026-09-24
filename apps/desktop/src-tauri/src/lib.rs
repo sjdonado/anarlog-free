@@ -164,6 +164,7 @@ pub fn main() {
                 };
 
             let startup_indicator = startup::SlowStartupIndicator::show_after_delay();
+            startup::consolidate_custom_storage(&identifier);
             let db = match open_desktop_db(&identifier).await {
                 Ok(db) => db,
                 Err(error) => {
@@ -243,6 +244,14 @@ pub fn main() {
         .manage(audio)
         .manage(db.clone())
         .manage(crash_reporting_state);
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.on_web_content_process_terminate(|webview| {
+            tauri_plugin_db::close_webview_subscriptions(webview.app_handle(), webview.label());
+            AppWindow::recover_terminated_webview(webview);
+        });
+    }
 
     // https://docs.crabnebula.dev/plugins/tauri-e2e-tests/#macos-support
     #[cfg(all(target_os = "macos", feature = "automation"))]
@@ -345,7 +354,7 @@ pub fn main() {
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(tauri_plugin_windows::persisted_window_state_flags())
-                .with_denylist(&["composer"])
+                .with_denylist(&["composer", "dictation-overlay"])
                 .build(),
         )
         .plugin(tauri_plugin_transcription::init())
@@ -397,6 +406,7 @@ pub fn main() {
         .on_window_event(tauri_plugin_windows::on_window_event)
         .setup(move |app| {
             let app_handle = app.handle().clone();
+            tauri_plugin_shortcut::initialize_global_shortcuts(&app_handle);
 
             specta_builder.mount_events(&app_handle);
 

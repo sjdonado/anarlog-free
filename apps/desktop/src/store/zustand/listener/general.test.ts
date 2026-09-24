@@ -1,7 +1,7 @@
 import { create as mutate } from "mutative";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import { toast } from "@anlg/ui/components/ui/toast";
 
 const {
   dispatchEventMock,
@@ -31,6 +31,12 @@ const {
   stopCaptureMock: vi.fn(),
   stopTranscriptionMock: vi.fn(),
   vaultBaseMock: vi.fn(),
+}));
+
+vi.mock("~/stt/speaker-context-capture", () => ({
+  startSpeakerContextCapture: vi.fn(),
+  observeSpeakerMicrophone: vi.fn(),
+  stopSpeakerContextCapture: vi.fn(async () => {}),
 }));
 
 vi.mock("@tauri-apps/api/app", () => ({
@@ -349,6 +355,44 @@ describe("General Listener Slice", () => {
       expect(store.getState().live.status).toBe("active");
       expect(store.getState().live.lastError).toBe("socket closed");
       expect(store.getState().live.lastErrorSessionId).toBe("session-1");
+    });
+
+    test("connected clears a connection error but keeps an audio error", () => {
+      store.setState((state) =>
+        mutate(state, (draft) => {
+          updateLiveProgress(draft.live, {
+            type: "connection_error",
+            session_id: "session-1",
+            error: "socket closed",
+          });
+          updateLiveProgress(draft.live, {
+            type: "connected",
+            session_id: "session-1",
+            adapter: "deepgram",
+          });
+        }),
+      );
+      expect(store.getState().live.lastError).toBeNull();
+      expect(store.getState().live.lastErrorSessionId).toBeNull();
+
+      store.setState((state) =>
+        mutate(state, (draft) => {
+          updateLiveProgress(draft.live, {
+            type: "audio_error",
+            session_id: "session-1",
+            error: "microphone unavailable",
+            device: null,
+            is_fatal: false,
+          });
+          updateLiveProgress(draft.live, {
+            type: "connected",
+            session_id: "session-1",
+            adapter: "deepgram",
+          });
+        }),
+      );
+      expect(store.getState().live.lastError).toBe("microphone unavailable");
+      expect(store.getState().live.lastErrorIsAudioRelated).toBe(true);
     });
 
     test("markLiveActive preserves the need for batch repair after recovery", () => {
@@ -1145,7 +1189,7 @@ describe("General Listener Slice", () => {
     });
 
     test("clears the stall warning only after finalized transcript words resume", async () => {
-      const dismiss = vi.spyOn(sonnerToast, "dismiss");
+      const dismiss = vi.spyOn(toast, "dismiss");
       getCaptureSnapshotMock.mockResolvedValueOnce({
         status: "ok",
         data: {
@@ -2135,6 +2179,77 @@ describe("General Listener Slice", () => {
       expect(store.getState().live.lastErrorSessionId).toBe("session-a");
       expect(store.getState().live.lastErrorIsAudioRelated).toBe(false);
       consoleError.mockRestore();
+    });
+
+    test("notifies about preserved audio without marking capture as failed", async () => {
+      await store.getState().start({
+        session_id: "session-a",
+        languages: [],
+        onboarding: false,
+        model: "test-model",
+        base_url: "http://localhost",
+        api_key: "test-key",
+        keywords: [],
+      });
+      const progressHandler =
+        listenCaptureStatusMock.mock.calls[
+          listenCaptureStatusMock.mock.calls.length - 1
+        ]?.[0];
+      const payload = {
+        type: "audio_error",
+        session_id: "session-b",
+        error: "recording_recovered",
+        device: null,
+        is_fatal: false,
+      };
+      const warning = vi
+        .spyOn(toast, "warning")
+        .mockImplementation(() => "warning");
+      progressHandler?.({ payload });
+      expect(toast.warning).not.toHaveBeenCalled();
+      progressHandler?.({ payload: { ...payload, session_id: "session-a" } });
+      expect(toast.warning).toHaveBeenCalledWith(
+        "The previous recording needs recovery",
+        expect.objectContaining({
+          id: "recording-recovered-session-a",
+          duration: Infinity,
+          description: expect.stringContaining("Your transcript is unchanged"),
+        }),
+      );
+      expect(store.getState().live.lastError).toBeNull();
+      expect(stopCaptureMock).not.toHaveBeenCalled();
+      warning.mockRestore();
+    });
+
+    test("keeps storage failures in shared live state without stopping capture", async () => {
+      await store.getState().start({
+        session_id: "session-a",
+        languages: [],
+        onboarding: false,
+        model: "test-model",
+        base_url: "http://localhost",
+        api_key: "test-key",
+        keywords: [],
+      });
+      const handler =
+        listenCaptureStatusMock.mock.calls[
+          listenCaptureStatusMock.mock.calls.length - 1
+        ]?.[0];
+      handler?.({
+        payload: {
+          type: "audio_error",
+          session_id: "session-a",
+          error: "audio_storage_backpressure",
+          is_fatal: false,
+          device: null,
+        },
+      });
+      expect(store.getState().live.lastError).toBe(
+        "audio_storage_backpressure",
+      );
+      expect(store.getState().live.lastErrorIsAudioRelated).toBe(true);
+      expect(store.getState().live.sessionId).toBe("session-a");
+      expect(stopCaptureMock).not.toHaveBeenCalled();
     });
 
     test("preserves explicit audio errors when capture startup fails", async () => {

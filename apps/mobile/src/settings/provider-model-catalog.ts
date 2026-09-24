@@ -36,6 +36,7 @@ const TRANSCRIPTION_MODELS: Record<string, readonly string[]> = {
     "openai/whisper-1",
   ],
   dashscope: [
+    "qwen-audio-3.1-asr-flash-streaming",
     "qwen3-asr-flash-realtime",
     "qwen3-asr-flash-realtime-2026-02-10",
   ],
@@ -70,6 +71,7 @@ const TRANSCRIPTION_MODELS: Record<string, readonly string[]> = {
   ],
   pyannote: ["parakeet-tdt-0.6b-v3", "faster-whisper-large-v3-turbo"],
   cohere: ["cohere-transcribe-03-2026", "cohere-transcribe-arabic-07-2026"],
+  wisprflow: ["flow"],
   aquavoice: ["avalon-v1.5"],
   meta: ["muse-voice-transcribe-1.0"],
   custom: [],

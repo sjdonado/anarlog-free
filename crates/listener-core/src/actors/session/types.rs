@@ -1,11 +1,11 @@
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 
 use anlg_audio::AudioProvider;
 use anlg_transcript::IdentityAssignment;
 
-use crate::{ListenerRuntime, TranscriptionMode};
+use crate::{ListenerRuntime, LiveTranscriptEngine, TranscriptionMode};
 
 pub const SESSION_SUPERVISOR_PREFIX: &str = "session_supervisor_";
 
@@ -17,6 +17,8 @@ pub fn session_span(session_id: &str) -> tracing::Span {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SessionParams {
     pub session_id: String,
+    #[serde(default)]
+    pub retain_audio: Option<bool>,
     pub languages: Vec<anlg_language::Language>,
     pub onboarding: bool,
     #[serde(default)]
@@ -143,7 +145,12 @@ pub struct SessionContext {
     pub app_dir: PathBuf,
     pub started_at_instant: Instant,
     pub started_at_system: SystemTime,
+    /// The live transcript outlives any one listener: a reconnecting listener resumes it so the
+    /// audio it replays cannot finalize words twice and segments continue across the gap.
+    pub live_transcript: SharedLiveTranscript,
 }
+
+pub type SharedLiveTranscript = Arc<Mutex<Option<LiveTranscriptEngine>>>;
 
 pub fn session_supervisor_name(session_id: &str) -> String {
     format!("{}{}", SESSION_SUPERVISOR_PREFIX, session_id)
@@ -156,6 +163,7 @@ mod tests {
     fn session_params(base_url: &str, model: &str, mode: TranscriptionMode) -> SessionParams {
         SessionParams {
             session_id: "session".to_string(),
+            retain_audio: None,
             languages: vec![],
             onboarding: false,
             transcription_mode: mode,

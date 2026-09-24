@@ -206,8 +206,8 @@ describe("SettingsNav", () => {
     fireEvent.click(screen.getByRole("button", { name: label }));
 
     expect(
-      screen.getByTestId(`settings-nav-destination-icon-${destination.type}`),
-    ).toBeTruthy();
+      screen.queryByTestId(`settings-nav-destination-icon-${destination.type}`),
+    ).toBeNull();
     expect(mocks.openNew).toHaveBeenCalledWith(destination);
   });
 
@@ -258,13 +258,28 @@ describe("SettingsNav", () => {
     expect(screen.queryByText("Personalization")).toBeNull();
   });
 
-  it("opens personal stats for free users", () => {
+  it("opens Account and Billing as separate destinations", () => {
+    render(<SettingsNav />);
+    fireEvent.click(screen.getByRole("button", { name: "Account" }));
+    expect(mocks.updateSettingsTabState).toHaveBeenLastCalledWith(
+      mocks.currentTab,
+      { tab: "account" },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Billing" }));
+    expect(mocks.updateSettingsTabState).toHaveBeenLastCalledWith(
+      mocks.currentTab,
+      { tab: "billing" },
+    );
+  });
+
+  it("shows only Insights and opens it for free users", () => {
     mocks.isPro = false;
     render(<SettingsNav />);
-    fireEvent.click(screen.getByRole("button", { name: "Stats" }));
+    expect(screen.queryByRole("button", { name: "Stats" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Insights" }));
     expect(mocks.updateSettingsTabState).toHaveBeenCalledWith(
       mocks.currentTab,
-      { tab: "stats" },
+      { tab: "insights" },
     );
   });
 

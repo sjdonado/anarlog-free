@@ -17,7 +17,7 @@ import {
 } from "@anlg/plugin-db";
 import { commands as fsSyncCommands } from "@anlg/plugin-fs-sync";
 import { commands as miscCommands } from "@anlg/plugin-misc";
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import { toast } from "@anlg/ui/components/ui/toast";
 
 import {
   applyCloudsyncPreference,
@@ -70,7 +70,7 @@ vi.mock("@tauri-apps/plugin-os", () => ({
 }));
 
 vi.mock("@anlg/ui/components/ui/toast", () => ({
-  sonnerToast: { error: vi.fn(), dismiss: vi.fn() },
+  toast: { error: vi.fn(), dismiss: vi.fn() },
 }));
 
 const NOW = new Date("2026-07-13T00:00:00Z");
@@ -474,7 +474,7 @@ describe("CloudSync auth lifecycle", () => {
     await handleCloudsyncAuthChange("SIGNED_IN", session());
 
     expect(getCloudsyncCredentialBlock()).toBe("device_limit");
-    expect(sonnerToast.error).toHaveBeenCalledOnce();
+    expect(toast.error).toHaveBeenCalledOnce();
     expect(configureCloudsyncToken).not.toHaveBeenCalled();
   });
 
@@ -839,12 +839,82 @@ describe("CloudSync auth lifecycle", () => {
     expect(configureCloudsyncToken).not.toHaveBeenCalled();
   });
 
+  test.each(["sqlite-sync", "replica"])(
+    "starts and refreshes %s sync when a teammate has not set up encryption",
+    async (transport) => {
+      const payload = projectedCredentialsPayload();
+      payload.workspaces[1]!.role = "owner";
+      const fetchMock = vi.fn((url: URL | string) => {
+        if (String(url).endsWith("/recipients")) {
+          return Promise.resolve(
+            Response.json([
+              {
+                userId: "user-id",
+                publicKey: E2EE_MEMBER_PUBLIC_KEY,
+                grantedKeyIds: [payload.workspaceKeyGrants[0]!.keyId],
+              },
+              {
+                userId: "new-member",
+                publicKey: null,
+                grantedKeyIds: [],
+              },
+            ]),
+          );
+        }
+        return Promise.resolve(
+          Response.json({
+            ...payload,
+            ...(transport === "replica" ? { transport } : {}),
+          }),
+        );
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      await handleCloudsyncAuthChange("SIGNED_IN", session());
+      await handleCloudsyncAuthChange("TOKEN_REFRESHED", session());
+
+      const configure =
+        transport === "replica"
+          ? configureE2eeReplica
+          : configureCloudsyncToken;
+      expect(configure).toHaveBeenCalledTimes(2);
+      expect(configure).toHaveBeenLastCalledWith(
+        ...(transport === "replica"
+          ? ["user-id"]
+          : ["database-id", "sqlite-token", "user-id"]),
+        witness(),
+        {
+          accountUserId: "user-id",
+          personalWorkspaceId: "user-id",
+          workspaces: payload.workspaces,
+        },
+        payload.workspaceKeyGrants,
+      );
+      expect(getCloudsyncCredentialBlock()).toBeNull();
+      expect(startCloudsyncInitialSyncProgress).toHaveBeenCalledWith("user-id");
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    },
+  );
+
+  test("uses isolated replica credentials for a connected local library", async () => {
+    const fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(projectedCredentialsResponse()),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(execute).mockResolvedValueOnce([{ connected: 1 }]);
+    await handleCloudsyncAuthChange("SIGNED_IN", session());
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "/sync/replica/credentials",
+    );
+  });
+
   test("deletes queued folders only after native revocation succeeds", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.resolve(projectedCredentialsResponse())),
     );
     vi.mocked(execute)
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         { sessionId: "session-shared", workspaceId: "workspace-shared" },
       ])
@@ -856,7 +926,7 @@ describe("CloudSync auth lifecycle", () => {
       "session-shared",
     );
     expect(execute).toHaveBeenNthCalledWith(
-      2,
+      3,
       expect.stringContaining("DELETE FROM cloudsync_session_evictions"),
       [
         "session-shared",
@@ -873,6 +943,7 @@ describe("CloudSync auth lifecycle", () => {
       vi.fn(() => Promise.resolve(projectedCredentialsResponse())),
     );
     vi.mocked(execute)
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         { sessionId: "session-shared", workspaceId: "workspace-shared" },
       ])
@@ -885,14 +956,14 @@ describe("CloudSync auth lifecycle", () => {
     await handleCloudsyncAuthChange("SIGNED_IN", session());
 
     expect(execute).toHaveBeenNthCalledWith(
-      2,
+      3,
       expect.stringContaining("UPDATE cloudsync_session_evictions"),
       ["folder busy", "session-shared", "workspace-shared"],
     );
-    expect(execute).toHaveBeenCalledTimes(2);
+    expect(execute).toHaveBeenCalledTimes(3);
 
     await vi.advanceTimersByTimeAsync(30 * 1000);
-    expect(execute).toHaveBeenCalledTimes(3);
+    expect(execute).toHaveBeenCalledTimes(4);
   });
 
   test("rejects partial workspace metadata instead of treating it as legacy", async () => {
@@ -2346,7 +2417,7 @@ describe("CloudSync auth lifecycle", () => {
     );
     expect(configureCloudsyncToken).not.toHaveBeenCalled();
     expect(suspendCloudsync).toHaveBeenCalledTimes(1);
-    expect(sonnerToast.error).toHaveBeenCalledWith(
+    expect(toast.error).toHaveBeenCalledWith(
       expect.stringContaining("sync device limit is reached"),
       expect.objectContaining({ id: "cloudsync-device-limit" }),
     );

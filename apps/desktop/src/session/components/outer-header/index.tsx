@@ -37,7 +37,10 @@ import {
 } from "~/session/hooks/useRemoteMeeting";
 import { useSessionEvent } from "~/session/hooks/useSessionEvent";
 import { useSessionParticipants } from "~/session/queries";
-import { useWindowControlsGutter } from "~/shared/hooks/useWindowControlsGutter";
+import {
+  usesWindowsStyleTitleBar,
+  useWindowControlsGutter,
+} from "~/shared/hooks/useWindowControlsGutter";
 import { getScheme } from "~/shared/utils";
 import type { EditorView, Tab } from "~/store/zustand/tabs/schema";
 import { useListener } from "~/stt/contexts";
@@ -68,7 +71,7 @@ export function OuterHeader({
   const now = useNow();
   const showWindowControlsGutter = useWindowControlsGutter();
   const showSidebarTimelineHeaderGutter =
-    !standaloneWindow && !leftsidebar.expanded;
+    !standaloneWindow && !leftsidebar.expanded && !usesWindowsStyleTitleBar();
   const endedAt = sessionEvent?.ended_at
     ? safeParseDate(sessionEvent.ended_at)
     : null;
@@ -77,7 +80,8 @@ export function OuterHeader({
     sessionMode === "active" || sessionMode === "running_batch";
   const isLiveMeeting = isRecording || sessionMode === "finalizing";
   const meetingOver = !isRecording && (ended || hasTranscript || audioExists);
-  const showTitleInput = Boolean(tab) && !isLiveMeeting && !meetingOver;
+  const showTitleInput =
+    Boolean(tab) && !viewSwitcher && !isLiveMeeting && !meetingOver;
 
   return (
     <div
@@ -88,15 +92,21 @@ export function OuterHeader({
         // sidebar toggle row (pt-[9px] + size-7).
         "h-12 pb-0.5",
         standaloneWindow && (showWindowControlsGutter ? "pl-[76px]" : "pl-2"),
-        !standaloneWindow && leftsidebar.expanded && "pl-2",
+        !standaloneWindow && !showSidebarTimelineHeaderGutter && "pl-2",
         showSidebarTimelineHeaderGutter &&
           (showWindowControlsGutter ? "pl-[108px]" : "pl-[32px]"),
       ])}
     >
       {viewSwitcher}
       {showTitleInput && tab ? (
-        <div className="max-w-56 min-w-0 shrink">
-          <TitleInput key={tab.id} tab={tab} variant="breadcrumb" />
+        <div className="flex min-w-0 shrink items-center gap-1">
+          <FolderPicker sessionId={sessionId} />
+          <span aria-hidden="true" className="text-muted-foreground shrink-0">
+            /
+          </span>
+          <div className="max-w-56 min-w-0 shrink">
+            <TitleInput key={tab.id} tab={tab} variant="breadcrumb" />
+          </div>
         </div>
       ) : null}
       <div
@@ -108,7 +118,7 @@ export function OuterHeader({
         data-tauri-drag-region
         className="relative z-10 flex shrink-0 items-center pr-1"
       >
-        <FolderPicker sessionId={sessionId} align="end" />
+        {!showTitleInput && <FolderPicker sessionId={sessionId} align="end" />}
         <HeaderMeetingControl
           sessionId={sessionId}
           sessionMode={sessionMode}
@@ -147,7 +157,7 @@ function HeaderMeetingControl({
 
   if (meetingOver) {
     return (
-      <div className="relative mr-1 flex min-w-0 shrink-0 items-center">
+      <div className="relative mr-1 ml-1 flex min-w-0 shrink-0 items-center">
         <SessionShareButton
           key={sessionId}
           sessionId={sessionId}
@@ -376,7 +386,7 @@ function HeaderMeetingAction({
         open={prePromptOpen}
         onDone={handlePrePromptDone}
       />
-      <div className="relative mr-1 flex min-w-0 shrink-0 items-center">
+      <div className="relative mr-1 ml-1 flex min-w-0 shrink-0 items-center">
         <PopoverAnchor asChild>
           <Button
             type="button"

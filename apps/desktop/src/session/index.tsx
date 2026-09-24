@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import React, { useEffect, useRef } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import { commands as fsSyncCommands } from "@anlg/plugin-fs-sync";
 
@@ -44,9 +45,7 @@ import {
 import { useSession } from "~/session/queries";
 import { type Tab, useTabs } from "~/store/zustand/tabs";
 import { useListener } from "~/stt/contexts";
-import { consumePendingUpload } from "~/stt/pending-upload";
 import { ScheduledSessionAutoStart } from "~/stt/scheduled-session-auto-start";
-import { useUploadFile } from "~/stt/useUploadFile";
 
 export function TabContentNote({
   standaloneWindow = false,
@@ -165,7 +164,6 @@ function TabContentNoteInner({
   const [editingTranscriptSessionId, setEditingTranscriptSessionId] =
     React.useState<string | null>(null);
   const transcriptEditMode = editingTranscriptSessionId === sessionId;
-  usePendingUpload(sessionId, !lockOverlay);
 
   const hasTranscript = useHasTranscript(sessionId);
   const sessionMode = useListener((state) => state.getSessionMode(sessionId));
@@ -248,6 +246,22 @@ function TabContentNoteInner({
     },
     [sessionId],
   );
+
+  useHotkeys(
+    "mod+s, escape",
+    () => handleTranscriptEditModeChange(false),
+    {
+      enabled:
+        tab.active &&
+        !lockOverlay &&
+        currentView.type === "transcript" &&
+        transcriptEditMode,
+      enableOnContentEditable: true,
+      enableOnFormTags: true,
+      preventDefault: true,
+    },
+    [handleTranscriptEditModeChange],
+  );
   return (
     <>
       <SessionSurface
@@ -260,15 +274,17 @@ function TabContentNoteInner({
               tab={tab}
               standaloneWindow={standaloneWindow}
               viewSwitcher={
-                <SessionViewSwitcher
-                  sessionId={sessionId}
-                  editorTabs={editorTabs}
-                  currentTab={currentView}
-                  handleTabChange={handleTabChange}
-                  isTranscribing={isTranscribing}
-                  transcriptEditMode={transcriptEditMode}
-                  onTranscriptEditModeChange={handleTranscriptEditModeChange}
-                />
+                editorTabs.length > 1 ? (
+                  <SessionViewSwitcher
+                    sessionId={sessionId}
+                    editorTabs={editorTabs}
+                    currentTab={currentView}
+                    handleTabChange={handleTabChange}
+                    isTranscribing={isTranscribing}
+                    transcriptEditMode={transcriptEditMode}
+                    onTranscriptEditModeChange={handleTranscriptEditModeChange}
+                  />
+                ) : null
               }
             />
           )
@@ -316,6 +332,7 @@ function TabContentNoteInner({
                 handleTabChange={handleTabChange}
                 sessionMode={sessionMode}
                 transcriptEditMode={transcriptEditMode}
+                onTranscriptEditModeChange={handleTranscriptEditModeChange}
                 hideHeader
               />
             ) : (
@@ -346,20 +363,6 @@ function SessionContentLoading() {
       <div className="bg-muted/70 h-4 w-2/3 animate-pulse rounded-md" />
     </div>
   );
-}
-
-function usePendingUpload(sessionId: string, enabled = true) {
-  const { processFile } = useUploadFile(sessionId);
-  const processFileRef = useRef(processFile);
-  processFileRef.current = processFile;
-
-  useEffect(() => {
-    if (!enabled) return;
-    const pending = consumePendingUpload(sessionId);
-    if (pending) {
-      processFileRef.current(pending.filePath, pending.kind);
-    }
-  }, [enabled, sessionId]);
 }
 
 function useAutoFocusEditor({

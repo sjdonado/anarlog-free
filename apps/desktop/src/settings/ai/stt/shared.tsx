@@ -73,7 +73,7 @@ const OPENROUTER_MODEL_LABELS: Record<string, string> = {
   "google/chirp-3": "Chirp 3",
 };
 
-export const displayModelId = (model: string): string => {
+const displayModelId = (model: string): string => {
   if (model === "qwen3-asr-fast:free") return "Qwen3 ASR Fast (Free)";
   if (model === "qwen3-asr:free") return "Qwen3 ASR (Free)";
   if (model === "qwen3-asr-fast") return "Qwen3 ASR Fast (Partner)";
@@ -185,6 +185,10 @@ export const displayModelId = (model: string): string => {
 
   if (model === "voxtral-mini-transcribe-realtime-2602") {
     return "Voxtral Realtime";
+  }
+
+  if (model === "qwen-audio-3.1-asr-flash-streaming") {
+    return "Qwen-Audio 3.1 ASR Flash Streaming";
   }
 
   if (model === "qwen3-asr-flash-realtime") {
@@ -542,7 +546,11 @@ const _PROVIDERS = [
     badge: null,
     icon: <ProviderLobeIcon icon={AlibabaCloud} />,
     baseUrl: "https://dashscope-intl.aliyuncs.com",
-    models: ["qwen3-asr-flash-realtime", "qwen3-asr-flash-realtime-2026-02-10"],
+    models: [
+      "qwen-audio-3.1-asr-flash-streaming",
+      "qwen3-asr-flash-realtime",
+      "qwen3-asr-flash-realtime-2026-02-10",
+    ],
     requirements: [{ kind: "requires_config", fields: ["api_key"] }],
     links: {
       models: {
@@ -655,6 +663,23 @@ const _PROVIDERS = [
         url: "https://docs.narilabs.com/models-and-pricing",
       },
       setup: { label: "API Keys", url: "https://app.narilabs.com/keys" },
+    },
+  },
+  {
+    disabled: false,
+    id: "wisprflow",
+    displayName: "Wispr Flow",
+    badge: null,
+    icon: <Waveform className="h-4 w-4" />,
+    baseUrl: "https://platform-api.wisprflow.ai",
+    models: ["flow"],
+    requirements: [{ kind: "requires_config", fields: ["api_key"] }],
+    links: {
+      models: {
+        label: "API documentation",
+        url: "https://api-docs.wisprflow.ai/introduction",
+      },
+      setup: { label: "API Keys", url: "https://platform.wisprflow.ai" },
     },
   },
   {
@@ -1101,6 +1126,7 @@ const PROVIDER_ORDER = [
   "together",
   "xai",
   "smallestai",
+  "wisprflow",
   "nari",
   "pyannote",
   "cohere",

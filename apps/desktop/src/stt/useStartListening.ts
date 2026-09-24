@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import { commands as analyticsCommands } from "@anlg/plugin-analytics";
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import { toast } from "@anlg/ui/components/ui/toast";
 
 import { useCaptureLifecycle } from "./capture-lifecycle";
 import { useListener } from "./contexts";
@@ -13,6 +13,7 @@ import {
 
 import { trackAnalyticsEvent } from "~/analytics";
 import { useShell } from "~/contexts/shell";
+import { normalizeAudioRetention } from "~/services/audio-retention";
 import { getSessionEvent } from "~/session/utils";
 import { getBaseLanguageDisplayName } from "~/settings/general/language";
 import { useConfigValue } from "~/shared/config";
@@ -32,10 +33,7 @@ export {
   getPostCaptureRepairReasons,
   type PostCaptureRepairReason,
 } from "./capture-lifecycle";
-export {
-  MEETING_DISCLOSURE_MESSAGE,
-  sendMeetingRecordingDisclosure,
-} from "./meeting-disclosure";
+export { sendMeetingRecordingDisclosure } from "./meeting-disclosure";
 export { useResumeListeningLifecycle } from "./resume-listening";
 
 export function useStartListening(sessionId: string) {
@@ -62,6 +60,8 @@ export function useStartListeningState(
   const spokenLanguages = useConfigValue("spoken_languages");
   const dictionaryTerms = useConfigValue("personalization_dictionary_terms");
   const microphoneDevice = useConfigValue("microphone_device");
+  const retainAudio =
+    normalizeAudioRetention(useConfigValue("audio_retention")) !== "none";
   const meetingDisclosureAutoSendChat = useConfigValue(
     "consent_auto_send_chat",
   );
@@ -135,7 +135,7 @@ export function useStartListeningState(
         );
       }
       await releaseCloudsyncDeferral();
-      sonnerToast.error(
+      toast.error(
         "Anarlog could not safely start recording. Please try again.",
         { id: "capture-state-persist-failed" },
       );
@@ -147,6 +147,7 @@ export function useStartListeningState(
       started = await start(
         {
           session_id: sessionId,
+          retain_audio: retainAudio,
           languages: liveTranscriptionConfig.languages,
           onboarding: false,
           model: conn?.model ?? "",
@@ -178,7 +179,7 @@ export function useStartListeningState(
       } finally {
         await releaseCloudsyncDeferral();
       }
-      sonnerToast.error(
+      toast.error(
         "Anarlog could not safely start recording. Please try again.",
         { id: "capture-state-persist-failed" },
       );
@@ -194,7 +195,7 @@ export function useStartListeningState(
         await lifecycle.cleanupFailedStart();
       } catch (error) {
         console.error("[listener] failed to clean up capture state", error);
-        sonnerToast.error(
+        toast.error(
           "Anarlog could not safely start recording. Please try again.",
           { id: "capture-state-persist-failed" },
         );
@@ -219,20 +220,17 @@ export function useStartListeningState(
         .map((language) => getBaseLanguageDisplayName(language))
         .join(", ");
 
-      sonnerToast.warning(
-        `Live transcription is using ${primaryLanguageName}`,
-        {
-          id: "recording-with-limited-transcription-languages",
-          duration: Infinity,
-          description: `Live transcription won't include ${omittedLanguageNames}. Audio is still being saved.`,
-          action: {
-            label: "Change",
-            onClick: openTranscriptionSettings,
-          },
+      toast.warning(`Live transcription is using ${primaryLanguageName}`, {
+        id: "recording-with-limited-transcription-languages",
+        duration: Infinity,
+        description: `Live transcription won't include ${omittedLanguageNames}. Audio is still being saved.`,
+        action: {
+          label: "Change",
+          onClick: openTranscriptionSettings,
         },
-      );
+      });
     } else if (!conn) {
-      sonnerToast.warning("Live transcription is not configured", {
+      toast.warning("Live transcription is not configured", {
         id: "recording-without-transcription",
         duration: Infinity,
         description:
@@ -251,7 +249,7 @@ export function useStartListeningState(
         sessionId,
         excludedTexts: [MEETING_DISCLOSURE_MESSAGE],
         onParticipantDeclined: () => {
-          sonnerToast.warning(
+          toast.warning(
             "A participant declined recording. Anarlog stopped listening.",
             { id: "meeting-consent-declined", duration: Infinity },
           );
@@ -288,6 +286,7 @@ export function useStartListeningState(
     dictionaryTerms,
     getSessionMode,
     microphoneDevice,
+    retainAudio,
     openNew,
     participantHumanIds,
     session,

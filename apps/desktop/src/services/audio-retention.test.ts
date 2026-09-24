@@ -5,12 +5,15 @@ const mocks = vi.hoisted(() => ({
   deleteLocalSessionAudio: vi.fn(),
   execute: vi.fn(),
   getSessionMode: vi.fn(),
+  markSessionAudioTranscriptionComplete: vi.fn(),
   live: { loading: false, sessionId: null as string | null },
 }));
 
 vi.mock("~/session/attachments", () => ({
   cleanupDeletedSessionAudio: mocks.cleanupDeletedSessionAudio,
   deleteLocalSessionAudio: mocks.deleteLocalSessionAudio,
+  markSessionAudioTranscriptionComplete:
+    mocks.markSessionAudioTranscriptionComplete,
 }));
 
 vi.mock("~/db", () => ({
@@ -124,7 +127,7 @@ describe("audio retention", () => {
     expect(deleted).toEqual(["expired"]);
   });
 
-  test("retention none keeps audio until transcript words exist", async () => {
+  test("retention none preserves idle audio until a transcript is saved", async () => {
     mockCleanupRows([
       {
         id: "unprocessed",
@@ -141,30 +144,43 @@ describe("audio retention", () => {
     await expect(
       cleanupExpiredAudio("none", Date.parse("2026-05-13T00:00:00.000Z")),
     ).resolves.toEqual(["processed"]);
+    expect(mocks.deleteLocalSessionAudio).not.toHaveBeenCalledWith(
+      "unprocessed",
+      expect.any(Function),
+    );
     expect(mocks.deleteLocalSessionAudio).toHaveBeenCalledWith(
       "processed",
       expect.any(Function),
     );
   });
 
-  test("keeps source audio while transcription is still processing", async () => {
-    mockCleanupRows([
-      {
-        id: "partial",
-        created_at: "2026-05-01T00:00:00.000Z",
-        has_words: 1,
-        transcript_processing: 1,
-      },
-    ]);
+  test.each(["none", "oneWeek"] as const)(
+    "unfinished transcription extends %s audio retention",
+    async (policy) => {
+      mockCleanupRows([
+        {
+          id: "partial",
+          created_at: "2026-05-01T00:00:00.000Z",
+          has_words: 1,
+          transcript_processing: 1,
+        },
+      ]);
 
-    await expect(
-      cleanupExpiredAudio("none", Date.parse("2026-05-13T00:00:00.000Z")),
-    ).resolves.toEqual([]);
-    expect(mocks.deleteLocalSessionAudio).not.toHaveBeenCalled();
-  });
+      await expect(
+        cleanupExpiredAudio(policy, Date.parse("2026-05-13T00:00:00.000Z")),
+      ).resolves.toEqual([]);
+      expect(mocks.deleteLocalSessionAudio).not.toHaveBeenCalled();
+    },
+  );
 
   test("deletes processed audio immediately when retention is none", async () => {
-    mocks.execute.mockResolvedValueOnce([{ has_words: 1 }]);
+    mockCleanupRows([
+      {
+        id: "processed",
+        created_at: "2026-05-13T00:00:00.000Z",
+        has_words: 1,
+      },
+    ]);
     const listener = vi.fn();
     const unsubscribe = subscribeToSessionAudioRetention(listener);
 
@@ -186,8 +202,14 @@ describe("audio retention", () => {
     unsubscribe();
   });
 
-  test("keeps unprocessed audio when retention is none", async () => {
-    mocks.execute.mockResolvedValueOnce([{ has_words: 0 }]);
+  test("does not delete idle unprocessed audio when retention is none", async () => {
+    mockCleanupRows([
+      {
+        id: "unprocessed",
+        created_at: "2026-05-13T00:00:00.000Z",
+        has_words: 0,
+      },
+    ]);
 
     await expect(
       deleteProcessedAudioForRetention("none", "unprocessed"),
@@ -195,15 +217,21 @@ describe("audio retention", () => {
     expect(mocks.deleteLocalSessionAudio).not.toHaveBeenCalled();
   });
 
-  test("keeps partially persisted audio when retention is none", async () => {
-    mocks.execute.mockResolvedValueOnce([
-      { has_words: 1, transcript_processing: 1 },
+  test("does not delete idle partially persisted audio when retention is none", async () => {
+    mockCleanupRows([
+      {
+        id: "partial",
+        created_at: "2026-05-13T00:00:00.000Z",
+        has_words: 1,
+        transcript_processing: 1,
+      },
     ]);
 
     await expect(
       deleteProcessedAudioForRetention("none", "partial"),
     ).resolves.toBe(false);
     expect(mocks.deleteLocalSessionAudio).not.toHaveBeenCalled();
+    expect(mocks.markSessionAudioTranscriptionComplete).not.toHaveBeenCalled();
   });
 
   test("skips immediate deletion for retained audio", async () => {

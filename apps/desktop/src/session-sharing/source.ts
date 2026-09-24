@@ -7,6 +7,7 @@ import { DEFAULT_USER_ID } from "~/shared/utils";
 
 const EMPTY_DOCUMENT: JSONContent = { type: "doc", content: [] };
 const EMPTY_WORKSPACES: AvailableShareWorkspace[] = [];
+const EMPTY_PERSONAL_WORKSPACE_ID = "";
 const MAX_DOCUMENT_DEPTH = 64;
 const MAX_DOCUMENT_NODES = 50_000;
 
@@ -35,11 +36,16 @@ type SessionShareSourceSqlRow = {
   assigned_workspace_deleted_at: string | null;
   assigned_workspace_role: string | null;
   binding_json: string | null;
+  library_account_id?: string | null;
 };
 
 type AvailableShareWorkspaceSqlRow = {
   id: string;
   name: string;
+};
+
+type PersonalWorkspaceSqlRow = {
+  id: string;
 };
 
 export type SessionShareSource = {
@@ -122,7 +128,11 @@ const SESSION_SHARE_SOURCE_SQL = `
       FROM app_settings
       WHERE id = 'cloudsync_workspace_binding'
       LIMIT 1
-    ) AS binding_json
+    ) AS binding_json,
+    (
+      SELECT account_user_id FROM local_library_connections
+      WHERE library_workspace_id = session.workspace_id AND active = 1
+    ) AS library_account_id
   FROM sessions AS session
   LEFT JOIN session_documents AS share_document
     ON share_document.id = (${SESSION_SHARE_DOCUMENT_ID_SQL})
@@ -141,6 +151,21 @@ const AVAILABLE_SHARE_WORKSPACES_SQL = `
   WHERE workspace.kind = 'shared'
     AND workspace.deleted_at IS NULL
   ORDER BY workspace.name COLLATE NOCASE, workspace.id
+`;
+
+const PERSONAL_WORKSPACE_SQL = `
+  SELECT workspace.id
+  FROM workspaces AS workspace
+  JOIN workspace_memberships AS membership
+    ON membership.workspace_id = workspace.id
+    AND membership.user_id = ?
+    AND membership.role = 'owner'
+    AND membership.deleted_at IS NULL
+  WHERE workspace.owner_user_id = ?
+    AND workspace.kind = 'personal'
+    AND workspace.deleted_at IS NULL
+  ORDER BY workspace.id
+  LIMIT 1
 `;
 
 export async function loadSessionShareSource(
@@ -245,12 +270,39 @@ export function useAvailableShareWorkspaces(
   return enabled ? data : EMPTY_WORKSPACES;
 }
 
+export function usePersonalWorkspaceId(
+  accountUserId: string | null | undefined,
+): string {
+  const normalizedAccountUserId = accountUserId?.trim() ?? "";
+  const enabled = Boolean(
+    normalizedAccountUserId && normalizedAccountUserId !== DEFAULT_USER_ID,
+  );
+  const { data = EMPTY_PERSONAL_WORKSPACE_ID } = useLiveQuery<
+    PersonalWorkspaceSqlRow,
+    string
+  >({
+    sql: PERSONAL_WORKSPACE_SQL,
+    params: [normalizedAccountUserId, normalizedAccountUserId],
+    enabled,
+    mapRows: (rows) => rows[0]?.id ?? "",
+  });
+
+  return enabled ? data : EMPTY_PERSONAL_WORKSPACE_ID;
+}
+
 function resolveSourceWorkspace(
   row: SessionShareSourceSqlRow,
   accountUserId: string,
 ): string {
   const personalWorkspaceAvailable = Boolean(row.personal_workspace_available);
   const assignedWorkspaceId = row.workspace_id.trim();
+
+  if (row.library_account_id === accountUserId) {
+    if (!personalWorkspaceAvailable) {
+      throw new Error("The personal workspace is unavailable for sharing");
+    }
+    return accountUserId;
+  }
 
   if (assignedWorkspaceId === accountUserId) {
     if (

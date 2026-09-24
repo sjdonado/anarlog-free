@@ -14,8 +14,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commands as miscCommands } from "@anlg/plugin-misc";
 import { commands as openerCommands } from "@anlg/plugin-opener2";
 import { openUrlWithInstruction } from "@anlg/plugin-windows";
-import { getProviderProfileImageUrl } from "@anlg/supabase/profile";
-import { sonnerToast } from "@anlg/ui/components/ui/toast";
+import {
+  getCustomProfileImageUrl,
+  getProviderProfileImageUrl,
+} from "@anlg/supabase/profile";
+import { toast } from "@anlg/ui/components/ui/toast";
 
 import {
   clearAuthAnalyticsGroups,
@@ -47,7 +50,7 @@ import {
 } from "./sign-out-coordination";
 
 import { trackAnalyticsEvent } from "~/analytics";
-import { StartFreshDialog } from "~/auth/start-fresh-dialog";
+import { ConnectLocalLibraryDialog } from "~/auth/connect-local-library-dialog";
 import { useLatestRef } from "~/shared/hooks/useLatestRef";
 import { useMountEffect } from "~/shared/hooks/useMountEffect";
 import {
@@ -87,7 +90,8 @@ async function settleWithin<T>(
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
-  const [startFreshOpen, setStartFreshOpen] = useState(false);
+  const [connectLibraryOpen, setConnectLibraryOpen] = useState(false);
+  const promptedAccountRef = useRef<string | null>(null);
   const currentWindowLabel = getCurrentWebviewWindow().label;
   const managesCloudsync = currentWindowLabel === "main";
   // Prevents double initSession in React StrictMode, which can cause refresh token races
@@ -275,30 +279,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      sonnerToast.error(
-        t`The notes on this device are linked to another Anarlog account. Sign in with the account previously used here, or start fresh on this device.`,
+      admittedUserIdRef.current = null;
+      if (managesCloudsync) {
+        await handleCloudsyncAuthChange("SIGNED_OUT", null);
+      }
+      if (transition !== authTransitionRef.current) return;
+      if (
+        !managesCloudsync ||
+        promptedAccountRef.current === sessionRef.current?.user.id
+      )
+        return;
+      promptedAccountRef.current = sessionRef.current?.user.id ?? null;
+      toast.info(
+        t`Your local notes are available. Connect this library to sync with your current account.`,
         {
           id: ACCOUNT_MISMATCH_TOAST_ID,
           duration: Number.POSITIVE_INFINITY,
           action: {
-            label: t`Start fresh`,
-            onClick: () => setStartFreshOpen(true),
+            label: t`Connect library`,
+            onClick: () => setConnectLibraryOpen(true),
           },
         },
       );
-      await rejectAuthChange(transition, true);
-
-      if (managesCloudsync && transition === authTransitionRef.current) {
-        try {
-          await emit(AUTH_SIGN_OUT_COMMITTED_EVENT, {
-            sourceLabel: currentWindowLabel,
-          } satisfies AuthSignOutCommittedPayload);
-        } catch {
-          console.warn("[auth] account rejection could not be synchronized");
-        }
-      }
+      setConnectLibraryOpen(true);
     },
-    [currentWindowLabel, managesCloudsync, rejectAuthChange],
+    [managesCloudsync],
   );
 
   const applyCloudsyncAuthChange = useCallback(
@@ -406,6 +411,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             if (outcome === "mismatch") {
               console.warn("[auth] local database belongs to another account");
+              commitSession(nextSession);
               await rejectAccountMismatch(transition);
               return;
             }
@@ -415,7 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               );
               return;
             }
-            sonnerToast.dismiss(ACCOUNT_MISMATCH_TOAST_ID);
+            toast.dismiss(ACCOUNT_MISMATCH_TOAST_ID);
             if (
               !(await restoreAdmittedSession(
                 nextSession,
@@ -454,6 +460,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (event === "SIGNED_OUT") {
+        promptedAccountRef.current = null;
+        setConnectLibraryOpen(false);
         let mainSignOutCompleted = false;
         if (event === "SIGNED_OUT" && !managesCloudsync) {
           resetTrackedAuthIdentity();
@@ -525,6 +533,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         if (outcome === "mismatch") {
           console.warn("[auth] local database belongs to another account");
+          commitSession(nextSession);
           await rejectAccountMismatch(transition);
           return;
         }
@@ -536,7 +545,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           void enqueueAuthAnalytics(() => trackAuthEvent(event, nextSession));
           return;
         }
-        sonnerToast.dismiss(ACCOUNT_MISMATCH_TOAST_ID);
+        toast.dismiss(ACCOUNT_MISMATCH_TOAST_ID);
+        promptedAccountRef.current = null;
+        setConnectLibraryOpen(false);
         if (
           !(await restoreAdmittedSession(
             nextSession,
@@ -1075,7 +1086,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getAvatarUrl = useCallback(async () => {
     const providerImageUrl = getProviderProfileImageUrl(session?.user);
-    if (providerImageUrl) {
+    if (providerImageUrl || getCustomProfileImageUrl(session?.user) === null) {
       return providerImageUrl;
     }
 
@@ -1126,10 +1137,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {managesCloudsync && (
-        <StartFreshDialog
-          open={startFreshOpen}
-          onOpenChange={setStartFreshOpen}
+      {managesCloudsync && session && (
+        <ConnectLocalLibraryDialog
+          key={session.user.id}
+          open={connectLibraryOpen}
+          onOpenChange={setConnectLibraryOpen}
+          accountUserId={session.user.id}
+          email={session.user.email ?? session.user.id}
+          onConnected={async () => {
+            if (sessionRef.current?.user.id !== session.user.id) return;
+            await enqueueAuthChange("SIGNED_IN", sessionRef.current);
+          }}
         />
       )}
     </AuthContext.Provider>

@@ -30,20 +30,17 @@ export {
   getOrCreateSessionForEventId,
 } from "./queries/creation";
 export {
-  FOLDER_PATHS_SQL,
   loadSessionSummariesByFolder,
   useFolderIcons,
   useFolderPaths,
+  useFolderWorkspaces,
 } from "./queries/folders";
-export type { FolderSessionSummary } from "./queries/folders";
+export type { FolderSessionSummary, FolderWorkspace } from "./queries/folders";
 export {
   applySessionProposal,
   declineSessionProposal,
-  insertSessionProposal,
-  loadPendingSessionProposals,
   loadSessionProposal,
   persistChatSessionProposal,
-  sessionProposalsQueryKey,
   usePendingSessionProposals,
 } from "./queries/proposals";
 export type { SessionProposalRecord } from "./queries/proposals";

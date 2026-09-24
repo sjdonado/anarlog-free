@@ -6,10 +6,10 @@ use ractor::{ActorProcessingErr, ActorRef};
 
 use owhisper_client::{
     AdapterKind, AnarlogAdapter, ArgmaxAdapter, AssemblyAIAdapter, CartesiaAdapter,
-    DashScopeAdapter, DeepgramAdapter, DeepgramFluxAdapter, ElevenLabsAdapter, FireworksAdapter,
-    GladiaAdapter, GoogleGenerativeAiAdapter, MetaAdapter, MistralAdapter, NariAdapter,
-    OpenAIAdapter, RealtimeSttAdapter, SmallestAIAdapter, SonioxAdapter, XaiAdapter,
-    anlg_ws_client,
+    DashScopeAdapter, DashScopeStreamingAdapter, DeepgramAdapter, DeepgramFluxAdapter,
+    ElevenLabsAdapter, FireworksAdapter, GladiaAdapter, GoogleGenerativeAiAdapter, MetaAdapter,
+    MistralAdapter, NariAdapter, OpenAIAdapter, RealtimeSttAdapter, SmallestAIAdapter,
+    SonioxAdapter, WisprFlowAdapter, XaiAdapter, anlg_ws_client,
 };
 use owhisper_interface::stream::{Extra, StreamResponse};
 use owhisper_interface::{ControlMessage, MixedMessage};
@@ -156,6 +156,15 @@ pub(super) async fn spawn_rx_task(
         return Ok((result.0, result.1, result.2, "deepgram".to_string()));
     }
 
+    if adapter_kind == AdapterKind::DashScope && DashScopeStreamingAdapter::is_model(&args.model) {
+        let result = if is_dual {
+            spawn_rx_task_dual_with_adapter::<DashScopeStreamingAdapter>(args, myself).await?
+        } else {
+            spawn_rx_task_single_with_adapter::<DashScopeStreamingAdapter>(args, myself).await?
+        };
+        return Ok((result.0, result.1, result.2, "dashscope".to_string()));
+    }
+
     macro_rules! dispatch_realtime {
         ($ak:expr, $is_dual:expr, $args:expr, $myself:expr,
          { $($var:ident => $adapter:ty),+ $(,)? },
@@ -197,6 +206,7 @@ pub(super) async fn spawn_rx_task(
         Xai => XaiAdapter,
         Nari => NariAdapter,
         SmallestAI => SmallestAIAdapter,
+        WisprFlow => WisprFlowAdapter,
         GoogleGenerativeAi => GoogleGenerativeAiAdapter,
         Anarlog => AnarlogAdapter,
     }, batch_only: [
@@ -675,11 +685,12 @@ mod tests {
             participant_human_ids: vec![],
             self_human_id: None,
             speaker_assignments: vec![],
+            live_transcript: Default::default(),
         }
     }
 
     #[test]
-    fn expected_speakers_counts_distinct_remote_participants() {
+    fn expected_speakers_does_not_cap_voices_to_calendar_attendance() {
         let mut args = listener_args("https://api.assemblyai.com", "u3-rt-pro");
         args.participant_human_ids = vec![
             "remote-a".to_string(),
@@ -689,7 +700,7 @@ mod tests {
         ];
         args.self_human_id = Some("self".to_string());
 
-        assert_eq!(expected_speakers(&args), Some(2));
+        assert_eq!(expected_speakers(&args), None);
     }
 
     #[test]
@@ -715,7 +726,7 @@ mod tests {
     }
 
     #[test]
-    fn build_listen_params_sets_num_speakers_without_assemblyai_custom_query() {
+    fn build_listen_params_leaves_assemblyai_speaker_counts_open() {
         let mut args = listener_args("https://api.assemblyai.com", "u3-rt-pro");
         args.participant_human_ids = vec!["remote".to_string()];
         args.self_human_id = Some("self".to_string());
@@ -723,8 +734,8 @@ mod tests {
         let params = build_listen_params(&args);
         let custom_query = params.custom_query.expect("custom query");
 
-        assert_eq!(params.num_speakers, Some(1));
-        assert_eq!(params.max_speakers, Some(1));
+        assert_eq!(params.num_speakers, None);
+        assert_eq!(params.max_speakers, None);
         assert!(!custom_query.contains_key("speaker_labels"));
         assert!(!custom_query.contains_key("max_speakers"));
     }
@@ -738,14 +749,14 @@ mod tests {
         let params = build_listen_params(&args);
         let custom_query = params.custom_query.expect("custom query");
 
-        assert_eq!(params.num_speakers, Some(1));
-        assert_eq!(params.max_speakers, Some(1));
+        assert_eq!(params.num_speakers, None);
+        assert_eq!(params.max_speakers, None);
         assert!(!custom_query.contains_key("speaker_labels"));
         assert!(!custom_query.contains_key("max_speakers"));
     }
 
     #[test]
-    fn build_listen_params_limits_each_channel_to_remote_participants() {
+    fn build_listen_params_does_not_limit_channels_to_invited_participants() {
         let mut args = listener_args("https://api.anarlog.so/stt", "cloud");
         args.participant_human_ids = vec![
             "self".to_string(),
@@ -756,8 +767,8 @@ mod tests {
 
         let params = build_listen_params(&args);
 
-        assert_eq!(params.num_speakers, Some(2));
-        assert_eq!(params.max_speakers, Some(2));
+        assert_eq!(params.num_speakers, None);
+        assert_eq!(params.max_speakers, None);
     }
 
     #[test]
