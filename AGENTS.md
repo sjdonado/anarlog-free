@@ -1,5 +1,23 @@
 # Overview
 
+> **This is a personal fork. Never merged upstream; local builds only; no public releases.** Personal behavior is gated behind the flags in `apps/desktop/src/shared/personal.ts`. See `README.md` for the fork notice and the list of modifications.
+
+## Fork: upstream sync procedure (standing instruction)
+
+Every upstream sync MUST end with a rebuild and a regression sweep proving the custom patches still hold. Never merge upstream and stop at "conflicts resolved". Do all of it in this order:
+
+1. `git fetch upstream` and merge `upstream/main` into a sync branch. Keep `README.md` ours (`--ours`) and regenerate i18n catalogs rather than hand-merging them.
+2. **Patch-presence sweep** — confirm every personal flag and Rust patch survived. Any zero count is a dropped customization, not a clean merge:
+   - Flags in `apps/desktop/src/shared/personal.ts` and their 19 call sites: `PERSONAL_LOCAL_PRO` (auth/billing.tsx), `PERSONAL_UPDATER_DISABLED` (main/update-banner.tsx, shared/config/index.ts), `PERSONAL_HIDE_DEVTOOLS_BAR` (devtools-bar/index.tsx), `outlinesEnabled = false` (devtools-bar/render-tracker.ts), `PERSONAL_HIDE_TEAMS` / `PERSONAL_HIDE_ACCOUNT` (sidebar/settings.tsx), `PERSONAL_HIDE_CLOUD_API` (settings/developers/index.tsx), `PERSONAL_HIDE_APP_ICON_PICKER` (settings/appearance/index.tsx), `PERSONAL_NATIVE_ICON_VARIANTS` (shared/theme/provider.tsx), `VISIBLE_STT_PROVIDERS` (settings/ai/stt/{shared,select,configure}.tsx), `isAutoEnhanceAllowed` (services/enhancer/index.ts), `isAutoEnhanceEnabled` (main/lifecycle.tsx), `autoEnhanceEnabled` (stt/capture-lifecycle.ts), `auto_enhance_after_transcript` (settings/schema.ts), `automaticUpdates.disabled` (settings/general/app-settings.tsx), `SpeakerPrePrompt` (session/components/outer-header/index.tsx), `EmptySummaryCta` (session/components/note-input/enhanced/index.tsx).
+   - Rust patches: `keyterms` in `crates/owhisper-client/src/adapter/elevenlabs/{mod,batch,live}.rs`, `keyword_prompt` in `crates/owhisper-client/src/adapter/openai/{mod,batch,live}.rs`.
+3. **Behavioral sweep** — `pnpm -F @anlg/ui build`, then `pnpm -F @anlg/desktop typecheck`, `pnpm -F @anlg/desktop test` (the `personal.test.ts` flag guards fail loudly if a flag flipped), and `cargo test --locked -p owhisper-client` for the keyterm/prompt tests. Re-run i18n extract+compile and confirm the catalogs are stable.
+4. **App sweep** — rebuild `Anarlog Dev.app`, reinstall to `/Applications` (that is what Raycast launches), and launch it to confirm it opens with the custom behavior intact.
+5. Report the sync as complete only when all four sweeps are green. A skipped sweep is an incomplete sync, never a pass.
+
+Local build workarounds this machine needs, all applied by `bash .agent/build-desktop-local.sh` (see `README.md`): `RUSTFLAGS="-C strip=none"`, the Xcode Metal toolchain component, `chmod -R u+w` on the soniqo build checkout, and a live symlink bridging the swift-rs archive path. Do not commit any of them.
+
+## Overview (upstream)
+
 For Anarlog work, read and follow [.agents/skills/anarlog-workflow/SKILL.md](.agents/skills/anarlog-workflow/SKILL.md). Start requested work immediately; record useful decisions and non-obvious lessons in Linear, not routine execution logs.
 
 Anarlog is a pnpm and Rust workspace. Read the nearest `AGENTS.md` before changing a component.

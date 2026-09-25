@@ -41,6 +41,27 @@ The dev build uses its own profile directory, separate from the official app, so
 
 To pull upstream updates: merge or rebase upstream `main` into your personal branch. Personal behavior lives behind the flags in `apps/desktop/src/shared/personal.ts`, plus additive settings and UI filters. Deletions of upstream files are avoided on purpose. Run the affected typechecks and tests afterwards; the guard tests will tell you if a flag stopped applying.
 
+## Pulling upstream updates
+
+This fork tracks upstream `main` (`https://github.com/fastrepl/anarlog`). A sync is not finished until the app is rebuilt and the custom patches are proven intact — never stop at "contests resolved":
+
+1. `git fetch upstream && git merge upstream/main` on a sync branch. Resolve `README.md` with `--ours`, take upstream's i18n catalogs and regenerate them, and keep both sides of small conflicts (for example upstream's new settings section plus our gated one).
+2. Sweep for every personal flag and Rust patch (the full list lives in `AGENTS.md`). A zero count means a dropped customization.
+3. Run the behavioral checks: `pnpm -F @anlg/ui build`, `pnpm -F @anlg/desktop typecheck`, `pnpm -F @anlg/desktop test`, `cargo test --locked -p owhisper-client`, then `lingui extract` + `compile` and confirm the catalogs settle.
+4. Rebuild `Anarlog Dev.app`, reinstall it to `/Applications` (that is what Raycast launches), and open it to confirm the custom behavior works.
+5. Merge the sync branch to `main` only after all of the above is green.
+
+### Local build workarounds on this machine
+
+macOS 27 with Xcode 27 needs four local workarounds. `bash .agent/build-desktop-local.sh` applies all of them and builds the app; none of them belong in a commit:
+
+- Build Rust with `RUSTFLAGS="-C strip=none"`. Without it, cargo's `-C strip=debuginfo` for dependencies plus the deployment target produces proc-macro dylibs macOS refuses to load, which surfaces as a misleading `sqlx` unresolved-import error.
+- Install the Metal toolchain once per Xcode upgrade: `xcodebuild -downloadComponent MetalToolchain`. The Soniqo build needs it.
+- `chmod -R u+w` the `transcribe-soniqo` build checkout before a build. Upstream's `build.rs` mishandles group-writable files and panics patching the Swift manifest.
+- Bridge the Swift archive path while the build runs: Swift 6.4 writes products to `out/Products/Debug`, while the `swift-rs` wrapper links against `arm64-apple-macosx/debug`. Every swift crate (`soniqo`, `apple-speech`, `windows`, `tcc`, `intercept`, `notification`, `local-llm`, `dictation-ui`) hits this, and build dirs churn per run, so the script keeps a background watcher that symlinks the two paths as they appear.
+
+`npx --yes pnpm@11.1.1 -F @anlg/desktop exec tauri build --debug` also needs `TAURI_SIGNING_PRIVATE_KEY` to finish the very last packaging step; without it the build still produces the `.app`, which is all this fork needs.
+
 ## License
 
 Same as upstream: MIT, see `LICENSE`. Enterprise components under `enterprise/` keep their commercial license and this fork changes nothing about that.
