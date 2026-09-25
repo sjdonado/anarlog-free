@@ -68,6 +68,7 @@ describe("STT providers", () => {
         "openai",
         "elevenlabs",
         "groq",
+        "openrouter",
         "custom",
       ].sort(),
     );

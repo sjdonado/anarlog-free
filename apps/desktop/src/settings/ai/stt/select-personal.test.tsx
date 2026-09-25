@@ -50,6 +50,7 @@ describe("useConfiguredMapping personal fork", () => {
       "openai",
       "elevenlabs",
       "groq",
+      "openrouter",
       "custom",
     ]) {
       expect(ids).toContain(id);

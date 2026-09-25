@@ -37,7 +37,13 @@ import { CustomSidebarHeader } from "./custom-sidebar-header";
 import { useBillingAccess } from "~/auth/billing-context";
 import { privacyMessages } from "~/settings/general/app-settings";
 import { useMyWorkspacesWithMirror } from "~/settings/team/mirror";
-import { PERSONAL_HIDE_ACCOUNT, PERSONAL_HIDE_TEAMS } from "~/shared/personal";
+import {
+  PERSONAL_HIDE_ACCOUNT,
+  PERSONAL_HIDE_BILLING,
+  PERSONAL_HIDE_CRM,
+  PERSONAL_HIDE_SYNC,
+  PERSONAL_HIDE_TEAMS,
+} from "~/shared/personal";
 import { type SettingsTab, type TabInput, useTabs } from "~/store/zustand/tabs";
 
 type SettingsNavItem =
@@ -194,6 +200,9 @@ export function SettingsNav() {
   const hiddenIds = new Set<string>([
     ...(PERSONAL_HIDE_TEAMS ? ["team"] : []),
     ...(PERSONAL_HIDE_ACCOUNT ? ["account"] : []),
+    ...(PERSONAL_HIDE_BILLING ? ["billing"] : []),
+    ...(PERSONAL_HIDE_SYNC ? ["sync"] : []),
+    ...(PERSONAL_HIDE_CRM ? ["crm"] : []),
   ]);
   const baseGroups =
     hiddenIds.size > 0

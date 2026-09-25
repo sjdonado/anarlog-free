@@ -62,4 +62,12 @@ describe("SettingsNav personal fork", () => {
     expect(screen.getByText("Automations")).not.toBeNull();
     expect(screen.getByText("Transcription")).not.toBeNull();
   });
+
+  it("hides Billing, Sync, and CRM", () => {
+    render(<SettingsNav />);
+
+    expect(screen.queryByText("Billing")).toBeNull();
+    expect(screen.queryByText("Sync")).toBeNull();
+    expect(screen.queryByText("CRM")).toBeNull();
+  });
 });

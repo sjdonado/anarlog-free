@@ -46,9 +46,12 @@ export function DictationLifecycle() {
     (state) => state.live.status !== "inactive" || state.live.loading,
   );
 
-  if (!session || !isReady || !isPro || !settingsReady || !enabled) return null;
+  // Personal fork: dictation works signed out with local or BYO-key
+  // providers. Upstream required a session, which left the settings page
+  // stuck on "Setting up dictation..." forever on a local-only build.
+  if (!isReady || !isPro || !settingsReady || !enabled) return null;
   return (
-    <TranscriptRetention key={session.user.id}>
+    <TranscriptRetention key={session?.user.id ?? "local"}>
       {!meetingActive && !capturingShortcut && (
         <ActiveDictation
           key={`${shortcut}:${handsFree}:${retry}`}

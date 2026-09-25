@@ -5,6 +5,7 @@ export const PERSONAL_VISIBLE_STT_IDS: ReadonlySet<string> = new Set([
   "openai",
   "elevenlabs",
   "groq",
+  "openrouter",
   "custom",
   "apple_speech",
 ]);
@@ -49,3 +50,9 @@ export const PERSONAL_NATIVE_ICON_VARIANTS = true;
 // auth stack itself stays mounted so account-gated features (sign-in via
 // Sync, CloudSync, sharing) keep working exactly as upstream.
 export const PERSONAL_HIDE_ACCOUNT = true;
+
+// Personal fork: local-only builds. Billing, Sync, and CRM all assume a hosted
+// account or a connected CRM, so their settings pages stay hidden.
+export const PERSONAL_HIDE_BILLING = true;
+export const PERSONAL_HIDE_SYNC = true;
+export const PERSONAL_HIDE_CRM = true;

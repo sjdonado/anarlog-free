@@ -14,8 +14,9 @@ All personal behavior is gated behind flags in one file, `apps/desktop/src/share
 
 * Automatic updates are off. The setting stays visible but is forced off and disabled, and the update banner and periodic checks are silenced. Manual tray/dock update items are untouched.
 * Local Pro. Every feature gate reads Pro, so the dictionary, templates, automations, sync UI, app icons, provider entitlements, and everything behind an upgrade prompt is unlocked. No checkout, trial, or paywall dialogs. The auth stack itself is untouched, so signing in and every account-gated feature works exactly as upstream.
-* Teams and Account screens are hidden from Settings. Cloud API and Connectors is hidden from Developers. The underlying modules stay intact.
-* Transcription providers are filtered, not deleted. The dropdowns keep the built-ins (Anarlog Cloud, on-device, local file, Apple Speech) plus OpenAI, ElevenLabs, Groq, and Custom. Everything else is hidden but still defined, so upstream provider updates merge cleanly.
+* Teams, Account, Billing, Sync, and CRM screens are hidden from Settings, along with Cloud API and Connectors in Developers. The underlying modules stay intact.
+* Transcription providers are filtered, not deleted. The dropdowns keep the built-ins (Anarlog Cloud, on-device, local file, Apple Speech) plus OpenAI, ElevenLabs, Groq, OpenRouter, and Custom. Everything else is hidden but still defined, so upstream provider updates merge cleanly.
+* Dictation arms without a signed-in session, so it works on a local build instead of sitting on "Setting up dictation…".
 * Summaries are manual by choice. A new "Auto-generate summary" switch (default on, upstream behavior) lets transcripts stay as transcripts. An empty summary shows an explicit "Generate summary" button plus "Choose template", and the blank editor stays available for manual writing.
 * Speaker names before recording. Pressing Record on a session with no participants asks who is in the meeting. Names become session participants, which feed transcription keywords and speaker-count hints. ElevenLabs requests now carry `keyterms` (batch and realtime, sanitized to API limits) and OpenAI whisper-family requests carry the names via `prompt`.
 * Quieter dev builds. React render outlines default off (toggle remains in the devtools bar) and the devtools stats bar is hidden by default.

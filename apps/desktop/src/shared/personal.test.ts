@@ -4,8 +4,11 @@ import {
   isPersonalSttVisible,
   PERSONAL_HIDE_ACCOUNT,
   PERSONAL_HIDE_APP_ICON_PICKER,
+  PERSONAL_HIDE_BILLING,
   PERSONAL_HIDE_CLOUD_API,
+  PERSONAL_HIDE_CRM,
   PERSONAL_HIDE_DEVTOOLS_BAR,
+  PERSONAL_HIDE_SYNC,
   PERSONAL_HIDE_TEAMS,
   PERSONAL_LOCAL_PRO,
   PERSONAL_NATIVE_ICON_VARIANTS,
@@ -28,6 +31,12 @@ describe("personal fork flags", () => {
 
   test("account screen stays hidden", () => {
     expect(PERSONAL_HIDE_ACCOUNT).toBe(true);
+  });
+
+  test("billing, sync, and crm screens stay hidden", () => {
+    expect(PERSONAL_HIDE_BILLING).toBe(true);
+    expect(PERSONAL_HIDE_SYNC).toBe(true);
+    expect(PERSONAL_HIDE_CRM).toBe(true);
   });
 
   test("icon picker stays hidden and native variants stay on", () => {
@@ -61,7 +70,14 @@ describe("personal fork flags", () => {
 
   test("STT allowlist keeps only the personal providers", () => {
     expect([...PERSONAL_VISIBLE_STT_IDS].sort()).toEqual(
-      ["apple_speech", "custom", "elevenlabs", "groq", "openai"].sort(),
+      [
+        "apple_speech",
+        "custom",
+        "elevenlabs",
+        "groq",
+        "openai",
+        "openrouter",
+      ].sort(),
     );
     expect(isPersonalSttVisible("deepgram")).toBe(false);
     expect(isPersonalSttVisible("openai")).toBe(true);

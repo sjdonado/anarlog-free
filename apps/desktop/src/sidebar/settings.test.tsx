@@ -102,6 +102,9 @@ vi.mock("~/shared/personal", async (importOriginal) => {
     PERSONAL_LOCAL_PRO: false,
     PERSONAL_HIDE_TEAMS: false,
     PERSONAL_HIDE_ACCOUNT: false,
+    PERSONAL_HIDE_BILLING: false,
+    PERSONAL_HIDE_SYNC: false,
+    PERSONAL_HIDE_CRM: false,
   };
 });
 

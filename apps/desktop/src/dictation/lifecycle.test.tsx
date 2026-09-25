@@ -200,12 +200,11 @@ describe("dictation access and lifecycle", () => {
     });
   });
 
-  it.each(["free", "loading", "signed-out", "disabled", "meeting"])(
+  it.each(["free", "loading", "disabled", "meeting"])(
     "does not register shortcuts when %s",
     async (condition) => {
       if (condition === "free") mocks.billing.isPro = false;
       if (condition === "loading") mocks.billing.isReady = false;
-      if (condition === "signed-out") mocks.session = null;
       if (condition === "disabled") mocks.settings.dictation_enabled = false;
       if (condition === "meeting") mocks.meeting.status = "active";
       render(<DictationLifecycle />);
@@ -214,6 +213,15 @@ describe("dictation access and lifecycle", () => {
       expect(mocks.startSystemRecording).not.toHaveBeenCalled();
     },
   );
+
+  // Personal fork: local-only builds are signed out, and dictation must still
+  // arm instead of sitting on "Setting up dictation..." forever.
+  it("registers shortcuts while signed out", async () => {
+    mocks.session = null;
+    render(<DictationLifecycle />);
+    await waitFor(() => expect(useDictationStatus.getState().ready).toBe(true));
+    expect(mocks.configure).toHaveBeenCalledWith("Control+Alt+Space");
+  });
 
   it("registers for Pro access and inserts into the captured field", async () => {
     render(<DictationLifecycle />);
