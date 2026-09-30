@@ -174,6 +174,12 @@ extern "C" fn tap_callback(
     }
 
     unsafe {
+        // Personal fork: the dictation paste chord (Command-V) is synthetic and
+        // must not reach the hotkey processor as if the user pressed Command.
+        if CGEventGetIntegerValueField(event, KCG_EVENT_SOURCE_USER_DATA) == SYNTHETIC_PASTE_MARKER
+        {
+            return event;
+        }
         let keycode = CGEventGetIntegerValueField(event, KCG_KEYBOARD_EVENT_KEYCODE) as u16;
         let flags = CGEventGetFlags(event);
 
@@ -233,6 +239,9 @@ const KCG_EVENT_TAP_DISABLED_BY_TIMEOUT: u32 = 0xFFFF_FFFE;
 const KCG_EVENT_TAP_DISABLED_BY_USER_INPUT: u32 = 0xFFFF_FFFF;
 
 const KCG_KEYBOARD_EVENT_KEYCODE: u32 = 9;
+const KCG_EVENT_SOURCE_USER_DATA: u32 = 42;
+// Personal fork: matches syntheticPasteMarker in crates/dictation-ui-macos TextInsertion.swift.
+const SYNTHETIC_PASTE_MARKER: i64 = 0x414E_4C47;
 
 const KCG_HID_EVENT_TAP: u32 = 0;
 const KCG_HEAD_INSERT_EVENT_TAP: u32 = 0;

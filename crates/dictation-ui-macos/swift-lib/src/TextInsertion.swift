@@ -128,9 +128,15 @@ private final class DictationTarget {
   }
 
   private func paste(_ text: String) -> String {
-    guard let source = CGEventSource(stateID: .combinedSessionState),
+    // Personal fork: a private source keeps held physical keys (for example Fn
+    // pressed again for the next dictation) out of the synthetic chord, and an
+    // explicit Command press makes apps that track modifier state (terminals)
+    // see Command-V instead of a bare "v".
+    guard let source = CGEventSource(stateID: .privateState),
+      let commandDown = CGEvent(keyboardEventSource: source, virtualKey: 55, keyDown: true),
       let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
-      let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)
+      let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false),
+      let commandUp = CGEvent(keyboardEventSource: source, virtualKey: 55, keyDown: false)
     else { return "Could not insert text. Copy your last dictation from Settings > Dictation." }
 
     let pasteboard = NSPasteboard.general
@@ -173,10 +179,16 @@ private final class DictationTarget {
     DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
       self.restoreClipboard(saved, expectedChangeCount: changeCount, retries: 2)
     }
+    commandDown.flags = .maskCommand
     down.flags = .maskCommand
     up.flags = .maskCommand
-    down.post(tap: .cghidEventTap)
-    up.post(tap: .cghidEventTap)
+    commandUp.flags = []
+    for event in [commandDown, down, up, commandUp] {
+      // Lets Anarlog's own shortcut tap ignore this synthetic chord.
+      event.setIntegerValueField(.eventSourceUserData, value: syntheticPasteMarker)
+      event.post(tap: .cghidEventTap)
+      usleep(8_000)
+    }
     return ""
   }
 
@@ -211,6 +223,25 @@ private final class DictationTarget {
 
 }
 
+// Personal fork: matches SYNTHETIC_PASTE_MARKER in crates/shortcut-macos/src/tap.rs.
+let syntheticPasteMarker: Int64 = 0x414E_4C47
+
+// Personal fork: wait (off the main thread) until the user has let go of Fn and
+// every other modifier, so the paste chord cannot mix with a held key.
+private func waitForModifiersReleased(timeout: TimeInterval = 1.5) {
+  let held: CGEventFlags = [
+    .maskSecondaryFn, .maskCommand, .maskAlternate, .maskControl, .maskShift,
+  ]
+  let deadline = Date().addingTimeInterval(timeout)
+  while !CGEventSource.flagsState(.hidSystemState).intersection(held).isEmpty,
+    Date() < deadline
+  {
+    usleep(20_000)
+  }
+  // Settle after the release so the key-up is processed before the chord.
+  usleep(30_000)
+}
+
 private func onMain<T>(_ work: () -> T) -> T {
   Thread.isMainThread ? work() : DispatchQueue.main.sync(execute: work)
 }
@@ -222,6 +253,7 @@ public func captureDictationTarget() -> SRString {
 
 @_cdecl("_insert_dictation_text")
 public func insertDictationText(target: SRString, text: SRString) -> SRString {
-  SRString(
+  if !Thread.isMainThread { waitForModifiersReleased() }
+  return SRString(
     onMain { DictationTarget.shared.insert(token: target.toString(), text: text.toString()) })
 }
