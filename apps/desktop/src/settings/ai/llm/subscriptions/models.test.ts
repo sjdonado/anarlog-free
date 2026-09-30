@@ -31,6 +31,7 @@ describe("ChatGPT subscription models", () => {
     mocks.fetchJson.mockReturnValue(
       Effect.succeed({
         models: [
+          { slug: "gpt-6", visibility: "list" },
           { slug: "gpt-5.6-sol", visibility: "list" },
           { slug: "codex-auto-review", visibility: "hide" },
           {
@@ -49,10 +50,10 @@ describe("ChatGPT subscription models", () => {
         "stored-credential",
       ),
     ).resolves.toMatchObject({
-      models: ["gpt-5.6-sol", "gpt-5.3-codex-spark"],
+      models: ["gpt-6", "gpt-5.6-sol", "gpt-5.3-codex-spark"],
     });
     expect(mocks.fetchJson).toHaveBeenCalledWith(
-      "https://chatgpt.com/backend-api/codex/models?client_version=0.145.0",
+      "https://chatgpt.com/backend-api/codex/models?client_version=0.159.2",
       expect.objectContaining({
         Authorization: "Bearer access-token",
         "ChatGPT-Account-ID": "account-1",

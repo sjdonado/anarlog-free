@@ -39,7 +39,10 @@ const ChatgptModelSchema = Schema.Struct({
   ),
 });
 
-const CHATGPT_CODEX_CLIENT_VERSION = "0.145.0";
+// Personal fork: the Codex catalog hides models whose minimum client version is
+// newer than this, so a stale pin drops new families (GPT 6). Track the
+// current @openai/codex release.
+const CHATGPT_CODEX_CLIENT_VERSION = "0.159.2";
 
 const CopilotModelSchema = Schema.Struct({
   data: Schema.Array(
