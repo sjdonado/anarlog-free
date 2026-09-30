@@ -1,3 +1,5 @@
+import { PERSONAL_DICTATION_SHORTCUT } from "~/shared/personal";
+
 export const SETTING_DEFINITIONS = {
   dictation_live_preview: {
     type: "boolean",
@@ -12,7 +14,7 @@ export const SETTING_DEFINITIONS = {
   dictation_shortcut: {
     type: "string",
     path: ["dictation", "shortcut"],
-    default: "Control+Alt+Space" as string,
+    default: PERSONAL_DICTATION_SHORTCUT as string,
   },
   dictation_hands_free: {
     type: "boolean",

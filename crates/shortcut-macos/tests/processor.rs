@@ -394,6 +394,86 @@ fn double_tap_lock_disabled_stays_press_and_hold() {
         .run();
 }
 
+// ---------- double-press modifier-only (personal fork) ----------
+
+fn double_press() -> Options {
+    Options {
+        use_double_tap_only: true,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn double_press_fn_starts_on_second_tap_and_stops_on_next() {
+    Scenario::new(fn_only())
+        .options(double_press())
+        .add(step(0.0, None, &[Modifier::Fn]).matched(false))
+        .add(step(0.1, None, &[]).matched(false))
+        .add(
+            step(0.3, None, &[Modifier::Fn])
+                .out(Output::StartRecording)
+                .state(StateKind::DoubleTapLock),
+        )
+        .add(step(0.4, None, &[]).state(StateKind::DoubleTapLock))
+        .add(
+            step(3.0, None, &[Modifier::Fn])
+                .out(Output::StopRecording)
+                .state(StateKind::Idle),
+        )
+        .add(step(3.1, None, &[]).matched(false))
+        .run();
+}
+
+#[test]
+fn double_press_fn_single_tap_does_nothing() {
+    Scenario::new(fn_only())
+        .options(double_press())
+        .add(step(0.0, None, &[Modifier::Fn]))
+        .add(step(0.1, None, &[]))
+        .add(step(1.0, None, &[Modifier::Fn]))
+        .add(step(1.1, None, &[]).matched(false))
+        .run();
+}
+
+#[test]
+fn double_press_fn_ignores_long_hold_as_first_tap() {
+    Scenario::new(fn_only())
+        .options(double_press())
+        .add(step(0.0, None, &[Modifier::Fn]))
+        .add(step(0.5, None, &[]))
+        .add(step(0.6, None, &[Modifier::Fn]))
+        .add(step(0.7, None, &[]).matched(false))
+        .run();
+}
+
+#[test]
+fn double_press_fn_ignores_fn_key_combos() {
+    Scenario::new(fn_only())
+        .options(double_press())
+        .add(step(0.0, None, &[Modifier::Fn]))
+        .add(step(0.05, Some(K_A), &[Modifier::Fn]))
+        .add(step(0.1, None, &[]))
+        .add(step(0.2, None, &[Modifier::Fn]))
+        .add(step(0.25, None, &[]).matched(false))
+        .run();
+}
+
+#[test]
+fn double_press_fn_escape_cancels_lock() {
+    Scenario::new(fn_only())
+        .options(double_press())
+        .add(step(0.0, None, &[Modifier::Fn]))
+        .add(step(0.1, None, &[]))
+        .add(step(0.3, None, &[Modifier::Fn]).out(Output::StartRecording))
+        .add(step(0.4, None, &[]))
+        .add(
+            step(1.0, Some(K_ESC), &[])
+                .out(Output::Cancel)
+                .state(StateKind::Idle),
+        )
+        .run();
+}
+
 // ---------- ESC ----------
 
 #[test]

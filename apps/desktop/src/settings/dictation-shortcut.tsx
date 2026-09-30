@@ -65,6 +65,7 @@ export function DictationShortcut({ shortcut }: { shortcut: string }) {
     Super: mac ? "⌘" : "Super",
     Meta: mac ? "⌘" : "Super",
     Fn: t`Fn / Globe`,
+    DoubleFn: t`Fn / Globe ×2`,
     RightCommand: t`Right Command`,
     ArrowLeft: "←",
     ArrowRight: "→",
@@ -152,6 +153,7 @@ export function DictationShortcut({ shortcut }: { shortcut: string }) {
       {mac && (
         <div className="flex gap-2">
           {[
+            ["DoubleFn", t`Fn / Globe twice`],
             ["Fn", t`Fn / Globe`],
             ["RightCommand", t`Right Command`],
           ].map(([value, label]) => (

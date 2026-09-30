@@ -129,7 +129,9 @@ function ActiveDictation({
       toast.error(message);
     };
     const controller = new DictationController({
-      handsFree,
+      // Personal fork: double-press Fn is already hands-free; its stop tap
+      // arrives as a release, which hands-free mode would otherwise ignore.
+      handsFree: handsFree && shortcut !== "DoubleFn",
       start: async () => {
         abort = new AbortController();
         finalTranscript = null;

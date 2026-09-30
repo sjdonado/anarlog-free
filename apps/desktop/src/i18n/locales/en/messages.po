@@ -2591,6 +2591,14 @@ msgstr "Float chat"
 msgid "Fn / Globe"
 msgstr "Fn / Globe"
 
+#: src/settings/dictation-shortcut.tsx
+msgid "Fn / Globe ×2"
+msgstr "Fn / Globe ×2"
+
+#: src/settings/dictation-shortcut.tsx
+msgid "Fn / Globe twice"
+msgstr "Fn / Globe twice"
+
 #: src/settings/appearance/sidebar-item-fields.tsx
 #: src/sidebar/note-filter-menu.tsx
 msgid "Folder"

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   isPersonalSttVisible,
+  PERSONAL_DICTATION_SHORTCUT,
   PERSONAL_HIDE_ACCOUNT,
   PERSONAL_HIDE_APP_ICON_PICKER,
   PERSONAL_HIDE_BILLING,
@@ -46,6 +47,16 @@ describe("personal fork flags", () => {
 
   test("devtools bar stays hidden by default", () => {
     expect(PERSONAL_HIDE_DEVTOOLS_BAR).toBe(true);
+  });
+
+  test("dictation defaults to pressing Fn twice", () => {
+    expect(PERSONAL_DICTATION_SHORTCUT).toBe("DoubleFn");
+    expect(
+      resolveConfigValue("dictation_shortcut", {
+        values: {},
+        hasValues: new Set(),
+      }),
+    ).toBe("DoubleFn");
   });
 
   test("cloud api stays hidden", () => {

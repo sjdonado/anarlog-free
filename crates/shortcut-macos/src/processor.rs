@@ -4,7 +4,10 @@ use std::{
 };
 
 use crate::{
-    decision::{CANCEL_WINDOW, DEFAULT_MIN_KEY_TIME, DOUBLE_TAP_WINDOW, MODIFIER_ONLY_MIN},
+    decision::{
+        CANCEL_WINDOW, DEFAULT_MIN_KEY_TIME, DOUBLE_PRESS_WINDOW, DOUBLE_TAP_WINDOW,
+        MODIFIER_ONLY_MIN,
+    },
     hotkey::HotKey,
     key_event::KeyEvent,
 };
@@ -58,6 +61,7 @@ pub struct HotKeyProcessor {
     options: Options,
     state: State,
     last_tap_at: Option<Instant>,
+    tap_pressed_at: Option<Instant>,
     dirty: bool,
     clock: Arc<dyn Clock>,
 }
@@ -73,6 +77,7 @@ impl HotKeyProcessor {
             options: Options::default(),
             state: State::Idle,
             last_tap_at: None,
+            tap_pressed_at: None,
             dirty: false,
             clock,
         }
@@ -106,6 +111,7 @@ impl HotKeyProcessor {
     pub fn reset(&mut self) {
         self.state = State::Idle;
         self.last_tap_at = None;
+        self.tap_pressed_at = None;
         self.dirty = false;
     }
 
@@ -129,6 +135,7 @@ impl HotKeyProcessor {
         }
         if event.is_escape() && !matches!(self.state, State::Idle) {
             self.dirty = true;
+            self.tap_pressed_at = None;
             self.state = State::Idle;
             self.last_tap_at = None;
             return Some(Output::Cancel);
@@ -147,6 +154,7 @@ impl HotKeyProcessor {
         } else {
             if self.chord_is_dirty(&event) {
                 self.dirty = true;
+                self.tap_pressed_at = None;
             }
             self.handle_nonmatching_chord(&event)
         }
@@ -184,8 +192,27 @@ impl HotKeyProcessor {
             && self.hotkey.key.is_some()
     }
 
+    // Personal fork: modifier-only double-press ("press Fn twice"). Two quick
+    // taps start a locked recording and the next tap stops it, so a single tap
+    // never starts and discards a throwaway recording.
+    fn is_double_press_modifier_only(&self) -> bool {
+        self.options.use_double_tap_only && self.hotkey.key.is_none()
+    }
+
     fn handle_matching_chord(&mut self) -> Option<Output> {
         match self.state {
+            State::Idle if self.is_double_press_modifier_only() => {
+                let now = self.clock.now();
+                if let Some(prev) = self.last_tap_at.take()
+                    && now.saturating_duration_since(prev) < DOUBLE_PRESS_WINDOW
+                {
+                    self.tap_pressed_at = None;
+                    self.state = State::DoubleTapLock;
+                    return Some(Output::StartRecording);
+                }
+                self.tap_pressed_at = Some(now);
+                None
+            }
             State::Idle => {
                 if self.is_double_tap_only_for_current_hotkey() {
                     self.last_tap_at = Some(self.clock.now());
@@ -208,6 +235,16 @@ impl HotKeyProcessor {
 
     fn handle_nonmatching_chord(&mut self, event: &KeyEvent) -> Option<Output> {
         match self.state {
+            State::Idle if self.is_double_press_modifier_only() => {
+                let now = self.clock.now();
+                if self.chord_fully_released(event)
+                    && let Some(pressed) = self.tap_pressed_at.take()
+                    && now.saturating_duration_since(pressed) < MODIFIER_ONLY_MIN
+                {
+                    self.last_tap_at = Some(now);
+                }
+                None
+            }
             State::Idle => {
                 if self.is_double_tap_only_for_current_hotkey()
                     && self.chord_fully_released(event)

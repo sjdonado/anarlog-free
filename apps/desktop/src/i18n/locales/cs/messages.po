@@ -2591,6 +2591,14 @@ msgstr ""
 msgid "Fn / Globe"
 msgstr ""
 
+#: src/settings/dictation-shortcut.tsx
+msgid "Fn / Globe ×2"
+msgstr ""
+
+#: src/settings/dictation-shortcut.tsx
+msgid "Fn / Globe twice"
+msgstr ""
+
 #: src/settings/appearance/sidebar-item-fields.tsx
 #: src/sidebar/note-filter-menu.tsx
 msgid "Folder"

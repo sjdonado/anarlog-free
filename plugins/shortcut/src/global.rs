@@ -36,8 +36,11 @@ pub async fn configure(app: tauri::AppHandle, shortcut: Option<String>) -> Resul
     let state = app.state::<GlobalState>();
     let mut registration = state.registration.lock().await;
     state.active.store(false, Ordering::SeqCst);
-    let native_only =
-        cfg!(target_os = "macos") && matches!(shortcut.as_deref(), Some("Fn" | "RightCommand"));
+    let native_only = cfg!(target_os = "macos")
+        && matches!(
+            shortcut.as_deref(),
+            Some("Fn" | "DoubleFn" | "RightCommand")
+        );
     if !uses_portal() {
         if let Some(global) =
             app.try_state::<tauri_plugin_global_shortcut::GlobalShortcut<tauri::Wry>>()
@@ -69,20 +72,23 @@ pub async fn configure(app: tauri::AppHandle, shortcut: Option<String>) -> Resul
     };
 
     #[cfg(target_os = "macos")]
-    if shortcut == "Fn" || shortcut == "RightCommand" {
+    if matches!(shortcut.as_str(), "Fn" | "DoubleFn" | "RightCommand") {
+        // Personal fork: "DoubleFn" is press Fn twice to start, once to stop.
+        let double_press = shortcut == "DoubleFn";
         return app
             .shortcut()
             .register(
                 crate::HotKey {
                     key: None,
-                    modifiers: vec![if shortcut == "Fn" {
-                        crate::Modifier::Fn
-                    } else {
+                    modifiers: vec![if shortcut == "RightCommand" {
                         crate::Modifier::RightCommand
+                    } else {
+                        crate::Modifier::Fn
                     }],
                 },
                 crate::Options {
-                    double_tap_lock_enabled: false,
+                    use_double_tap_only: double_press,
+                    double_tap_lock_enabled: double_press,
                     ..Default::default()
                 },
             )
@@ -179,7 +185,7 @@ pub fn validate(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
 }
 
 fn validate_shortcut(shortcut: &str, global_available: bool) -> Result<(), String> {
-    if cfg!(target_os = "macos") && matches!(shortcut, "Fn" | "RightCommand") {
+    if cfg!(target_os = "macos") && matches!(shortcut, "Fn" | "DoubleFn" | "RightCommand") {
         return Ok(());
     }
     let key = parse_shortcut(shortcut)?;
@@ -221,5 +227,7 @@ mod validation_tests {
         }
         #[cfg(target_os = "macos")]
         assert!(validate_shortcut("Fn", false).is_ok());
+        #[cfg(target_os = "macos")]
+        assert!(validate_shortcut("DoubleFn", false).is_ok());
     }
 }

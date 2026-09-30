@@ -60,3 +60,7 @@ export const PERSONAL_HIDE_CRM = true;
 // Personal fork: no in-note AI chat. Hides the floating "Ask anything" bar at
 // the bottom of a session; the chat implementation itself stays intact.
 export const PERSONAL_HIDE_CHAT_CTA = true;
+
+// Personal fork: dictation defaults to pressing Fn / Globe twice (start) and
+// once more (stop), like macOS dictation. Upstream defaults to Control+Alt+Space.
+export const PERSONAL_DICTATION_SHORTCUT = "DoubleFn";
