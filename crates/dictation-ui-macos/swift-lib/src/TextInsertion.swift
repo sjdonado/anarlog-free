@@ -55,10 +55,9 @@ private final class DictationTarget {
     if let focused, isSecure(focused) { return nil }
     // Terminals turn on Secure Keyboard Entry for password prompts.
     if IsSecureEventInputEnabled() { return nil }
-    guard let app = NSWorkspace.shared.frontmostApplication,
-      app.processIdentifier != ProcessInfo.processInfo.processIdentifier
-    else { return nil }
-    return app.processIdentifier
+    // Like Handy (cjpais/handy), paste into whatever is frontmost, Anarlog
+    // included: its webview handles Command-V like any other field.
+    return NSWorkspace.shared.frontmostApplication?.processIdentifier
   }
 
   func acceptsText(_ element: AXUIElement) -> Bool {
@@ -84,6 +83,16 @@ private final class DictationTarget {
     } else if AXIsProcessTrusted(), let pid = frontmostPasteTarget(focused) {
       pastePid = pid
     } else {
+      let front = NSWorkspace.shared.frontmostApplication
+      NSLog(
+        "anarlog-dictation capture refused: trusted=%d secureInput=%d focused=%d frontmost=%@ frontmostPid=%d ownPid=%d",
+        AXIsProcessTrusted() ? 1 : 0, IsSecureEventInputEnabled() ? 1 : 0, focused == nil ? 0 : 1,
+        front?.bundleIdentifier ?? "nil", front?.processIdentifier ?? -1,
+        ProcessInfo.processInfo.processIdentifier)
+      if IsSecureEventInputEnabled() {
+        return
+          "Secure Keyboard Entry is on, so dictation cannot type here. Turn it off in the focused app (for example after a password prompt) and try again."
+      }
       return
         "Focus an editable text field and enable Anarlog in System Settings > Privacy & Security > Accessibility. Password fields are excluded."
     }
