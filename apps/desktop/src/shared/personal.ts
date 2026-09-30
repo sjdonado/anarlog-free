@@ -56,3 +56,7 @@ export const PERSONAL_HIDE_ACCOUNT = true;
 export const PERSONAL_HIDE_BILLING = true;
 export const PERSONAL_HIDE_SYNC = true;
 export const PERSONAL_HIDE_CRM = true;
+
+// Personal fork: no in-note AI chat. Hides the floating "Ask anything" bar at
+// the bottom of a session; the chat implementation itself stays intact.
+export const PERSONAL_HIDE_CHAT_CTA = true;

@@ -85,6 +85,7 @@ function Probe() {
     <div
       data-is-paid={billing.isPaid ? "true" : "false"}
       data-is-pro={billing.isPro ? "true" : "false"}
+      data-is-ready={billing.isReady ? "true" : "false"}
       data-plan={billing.plan}
       data-testid="billing-access"
     />
@@ -110,6 +111,7 @@ describe("BillingProvider personal fork", () => {
     expect(access.getAttribute("data-is-paid")).toBe("true");
     expect(access.getAttribute("data-is-pro")).toBe("true");
     expect(access.getAttribute("data-plan")).toBe("pro");
+    expect(access.getAttribute("data-is-ready")).toBe("true");
 
     await waitFor(() => {
       expect(

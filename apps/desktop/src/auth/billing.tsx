@@ -95,7 +95,13 @@ export function BillingProvider({ children }: { children: ReactNode }) {
   });
 
   const billing = deriveBillingInfo(claimsQuery.data ?? null);
-  const isReady = !claimsQuery.isPending && !claimsQuery.isError;
+  // Personal fork: signed out, the claims query is disabled and therefore stays
+  // pending, so `isReady` would never become true and every gate keyed on it
+  // (dictation, settings) would hang. With no session there are no claims to
+  // wait for, so the local build is ready immediately.
+  const isReady =
+    (PERSONAL_LOCAL_PRO && !auth?.session?.access_token) ||
+    (!claimsQuery.isPending && !claimsQuery.isError);
   const claimsAreCurrent =
     !claimsQuery.isFetching && !claimsQuery.isPlaceholderData;
 

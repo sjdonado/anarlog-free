@@ -43,6 +43,7 @@ import {
   subscribeCanonicalSessionImportLocks,
 } from "~/session-sharing/editor-activity";
 import { useSession } from "~/session/queries";
+import { PERSONAL_HIDE_CHAT_CTA } from "~/shared/personal";
 import { type Tab, useTabs } from "~/store/zustand/tabs";
 import { useListener } from "~/stt/contexts";
 import { ScheduledSessionAutoStart } from "~/stt/scheduled-session-auto-start";
@@ -290,7 +291,7 @@ function TabContentNoteInner({
           )
         }
         floatingButton={
-          lockOverlay ? undefined : (
+          lockOverlay || PERSONAL_HIDE_CHAT_CTA ? undefined : (
             <FloatingActionButton
               allowListening={!standaloneWindow}
               audioExists={audioExists}
