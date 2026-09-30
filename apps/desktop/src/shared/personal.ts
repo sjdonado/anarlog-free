@@ -64,3 +64,8 @@ export const PERSONAL_HIDE_CHAT_CTA = true;
 // Personal fork: dictation defaults to pressing Fn / Globe twice (start) and
 // once more (stop), like macOS dictation. Upstream defaults to Control+Alt+Space.
 export const PERSONAL_DICTATION_SHORTCUT = "DoubleFn";
+
+// Personal fork: summaries are never generated automatically. After a meeting
+// the note offers "Generate summary" and "Clean up transcript" buttons instead.
+// The "Auto-generate summary" switch still exists; this only flips its default.
+export const PERSONAL_AUTO_SUMMARY_DEFAULT = false;

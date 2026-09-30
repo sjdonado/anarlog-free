@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import { CaretDown, Sparkle } from "@anlg/ui/components/icons";
+import { CaretDown, Sparkle, TextAa } from "@anlg/ui/components/icons";
 import { Spinner } from "@anlg/ui/components/ui/spinner";
 import { cn } from "@anlg/utils";
 
@@ -17,6 +17,10 @@ import {
 
 import { useAITaskTask } from "~/ai/hooks";
 import { getEnhancerService } from "~/services/enhancer";
+import {
+  CLEAN_TRANSCRIPT_TITLE,
+  isCleanTranscriptTemplate,
+} from "~/services/enhancer/clean-transcript";
 import { useEnhancedNoteActions } from "~/session/components/note-input/enhanced-actions";
 import { useEnhancedNote } from "~/session/queries";
 import {
@@ -69,11 +73,13 @@ function useEnhancedViewTitle(enhancedNoteId: string) {
   const templateId = enhancedNote?.templateId;
   const { data: template } = useUserTemplate(templateId);
   const templateTitle = template?.title?.trim() || null;
-  const viewTitle = getEnhancedNoteTitle({
-    rawTitle,
-    templateTitle,
-    templateId,
-  });
+  const viewTitle = isCleanTranscriptTemplate(templateId)
+    ? CLEAN_TRANSCRIPT_TITLE
+    : getEnhancedNoteTitle({
+        rawTitle,
+        templateTitle,
+        templateId,
+      });
 
   return {
     viewTitle,
@@ -100,6 +106,9 @@ function HeaderViewEnhancedInactive({
 }) {
   const { viewTitle, templateTooltip } = useEnhancedViewTitle(enhancedNoteId);
   const isGenerating = useEnhancedViewGenerating(enhancedNoteId);
+  const isCleanTranscript = isCleanTranscriptTemplate(
+    useEnhancedNote(enhancedNoteId)?.templateId,
+  );
 
   return (
     <button
@@ -113,6 +122,8 @@ function HeaderViewEnhancedInactive({
     >
       {isGenerating ? (
         <Spinner size={16} className="shrink-0" />
+      ) : isCleanTranscript ? (
+        <TextAa className="size-4" />
       ) : (
         <Sparkle className="size-4" />
       )}
@@ -140,6 +151,9 @@ function HeaderViewEnhancedActive({
   const enhancedNote = useEnhancedNote(enhancedNoteId);
   const content = enhancedNote?.content;
   const usedTemplateId = enhancedNote?.templateId?.trim() || null;
+  const isCleanTranscript = isCleanTranscriptTemplate(
+    usedTemplateId ?? undefined,
+  );
   const { viewTitle, templateTooltip } = useEnhancedViewTitle(enhancedNoteId);
   const noteMarkdown = useMemo(() => getStoredNoteMarkdown(content), [content]);
 
@@ -260,15 +274,21 @@ function HeaderViewEnhancedActive({
     >
       {isGenerating ? (
         <Spinner size={16} className="shrink-0" />
+      ) : isCleanTranscript ? (
+        <TextAa className="size-4" />
       ) : (
         <Sparkle className="size-4" />
       )}
       <span className="min-w-0 truncate text-xs font-medium @max-[480px]:sr-only">
         {viewTitle}
       </span>
-      <CaretDown className="size-3.5" />
+      {!isCleanTranscript && <CaretDown className="size-3.5" />}
     </button>
   );
+
+  // Personal fork: the clean transcript is not a summary, so it has no
+  // template picker; right-click still offers copy, regenerate, and remove.
+  if (isCleanTranscript) return templateMenuTrigger;
 
   return (
     <TemplatePickerPopover

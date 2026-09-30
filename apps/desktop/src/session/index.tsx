@@ -30,6 +30,7 @@ import {
   useEnhancedNotes,
   useEnsureDefaultSummaryFromState,
 } from "./hooks/useEnhancedNotes";
+import { useEnsureCleanTranscriptNote } from "./hooks/useEnsureCleanTranscriptNote";
 import { shouldShowSessionTopAudioPlayer } from "./top-audio-player";
 import { getSessionEvent } from "./utils";
 
@@ -38,6 +39,7 @@ import { isLockedFlag } from "~/lock/flag";
 import { revealLockedNote } from "~/lock/notes";
 import { NoteLockScreen } from "~/lock/screen";
 import { useAppLock } from "~/lock/store";
+import { placeCleanTranscriptTab } from "~/services/enhancer/clean-transcript";
 import {
   isCanonicalSessionImportLocked,
   subscribeCanonicalSessionImportLocks,
@@ -184,6 +186,10 @@ function TabContentNoteInner({
   const session = useSession(sessionId);
   const sessionEvent = session ? getSessionEvent(session) : null;
   const contentHydrated = session !== null;
+  const cleanTranscriptNoteId = useEnsureCleanTranscriptNote({
+    sessionId,
+    enabled: contentHydrated && !lockOverlay,
+  });
   useEnsureDefaultSummaryFromState({
     batchError: Boolean(batchError),
     enabled: contentHydrated && !lockOverlay,
@@ -200,11 +206,14 @@ function TabContentNoteInner({
   const isLiveSessionActive = sessionMode === "active";
   const editorTabs = React.useMemo(
     () =>
-      createEditorTabs({
-        enhancedNoteIds,
-        canShowTranscript,
-      }),
-    [enhancedNoteIds, canShowTranscript],
+      placeCleanTranscriptTab(
+        createEditorTabs({
+          enhancedNoteIds,
+          canShowTranscript,
+        }),
+        cleanTranscriptNoteId,
+      ),
+    [enhancedNoteIds, canShowTranscript, cleanTranscriptNoteId],
   );
   const currentView = React.useMemo(() => {
     return computeCurrentNoteTab(

@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   onRegenerate: vi.fn(),
+  templateId: "",
   selectTemplate: null as
     | null
     | ((selection: { templateId: string | null; title?: string }) => void),
@@ -22,7 +23,13 @@ vi.mock("../enhanced-actions", () => ({
 }));
 
 vi.mock("~/session/queries", () => ({
-  useEnhancedNote: () => ({ templateId: "" }),
+  useEnhancedNote: () => ({ templateId: mocks.templateId }),
+}));
+
+vi.mock("./clean-transcript-button", () => ({
+  CleanTranscriptButton: () => (
+    <button type="button">Clean up transcript</button>
+  ),
 }));
 
 vi.mock("../template-picker", () => ({
@@ -48,6 +55,7 @@ describe("EmptySummaryCta", () => {
     cleanup();
     vi.clearAllMocks();
     mocks.selectTemplate = null;
+    mocks.templateId = "";
   });
 
   function renderCta() {
@@ -73,5 +81,25 @@ describe("EmptySummaryCta", () => {
     await waitFor(() =>
       expect(mocks.onRegenerate).toHaveBeenCalledWith("template-9"),
     );
+  });
+
+  it("offers the clean transcript next to the summary actions", () => {
+    renderCta();
+
+    expect(
+      screen.getByRole("button", { name: "Clean up transcript" }),
+    ).not.toBeNull();
+  });
+
+  it("shows only the clean transcript action on a clean transcript tab", () => {
+    mocks.templateId = "personal:clean-transcript";
+    renderCta();
+
+    expect(
+      screen.getByRole("button", { name: "Clean up transcript" }),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Generate summary" }),
+    ).toBeNull();
   });
 });

@@ -9,6 +9,10 @@ import { HeaderViewEnhanced } from "./header-enhanced";
 import { HeaderViewRaw } from "./header-raw";
 import { HeaderViewTranscript } from "./header-transcript";
 
+import {
+  isCleanTranscriptTemplate,
+  placeCleanTranscriptTab,
+} from "~/services/enhancer/clean-transcript";
 import { FolderPicker } from "~/session/components/folder-picker";
 import { useCanShowTranscript } from "~/session/components/shared";
 import { useEnsureDefaultSummary } from "~/session/hooks/useEnhancedNotes";
@@ -139,12 +143,17 @@ export function useEditorTabs({
   useEnsureDefaultSummary(sessionId);
   const canShowTranscript = useCanShowTranscript(sessionId, { audioExists });
 
-  const enhancedNoteIds = useEnhancedNoteRecords(sessionId).map(
-    (note) => note.id,
-  );
+  const notes = useEnhancedNoteRecords(sessionId);
+  const enhancedNoteIds = notes.map((note) => note.id);
+  const cleanNoteId =
+    notes.find((note) => isCleanTranscriptTemplate(note.templateId))?.id ??
+    null;
 
-  return createEditorTabs({
-    enhancedNoteIds,
-    canShowTranscript,
-  });
+  return placeCleanTranscriptTab(
+    createEditorTabs({
+      enhancedNoteIds,
+      canShowTranscript,
+    }),
+    cleanNoteId,
+  );
 }

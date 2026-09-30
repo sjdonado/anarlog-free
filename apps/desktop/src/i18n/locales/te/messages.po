@@ -1252,6 +1252,10 @@ msgstr ""
 msgid "Clean up legacy files?"
 msgstr ""
 
+#: src/session/components/note-input/enhanced/clean-transcript-button.tsx
+msgid "Clean up transcript"
+msgstr ""
+
 #: src/settings/general/storage/legacy-cleanup.tsx
 msgid "Cleaning up..."
 msgstr ""
@@ -3689,6 +3693,10 @@ msgstr ""
 
 #: src/settings/automations/starter-config.tsx
 msgid "No channel selected yet."
+msgstr ""
+
+#: src/session/components/note-input/enhanced/empty-summary-cta.tsx
+msgid "No clean transcript yet. Rewrite the transcript into readable sentences and paragraphs, without summarizing it."
 msgstr ""
 
 #: src/templates/details.tsx

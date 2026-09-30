@@ -40,7 +40,8 @@ export function useEnhancedNoteRecords(
       WHERE session_id = ?
         AND kind IN ('summary', 'template_output')
         AND deleted_at IS NULL
-      ORDER BY sort_order, id
+      -- Personal fork: the clean transcript tab always sits last, next to Memos.
+      ORDER BY template_id = 'personal:clean-transcript', sort_order, id
     `,
     params: [sessionId],
     enabled: Boolean(sessionId),

@@ -16,6 +16,7 @@ import type { TaskArgsMap, TaskArgsMapTransformed, TaskConfig } from ".";
 import { collectEnhanceImageContext } from "./enhance-images";
 
 import { loadHumansByIds } from "~/contacts/queries";
+import { isCleanTranscriptTemplate } from "~/services/enhancer/clean-transcript";
 import { normalizeSummaryLengthMode } from "~/services/enhancer/summary-length";
 import {
   loadSessionContentSnapshot,
@@ -70,7 +71,10 @@ async function transformArgs(
     await loadMeetingChatRecords(sessionId),
   );
   const sessionContext = getSessionContext(snapshot, meetingChatContext);
-  const templateRecord = await loadTemplate(templateId);
+  const cleanTranscript = isCleanTranscriptTemplate(templateId);
+  const templateRecord = cleanTranscript
+    ? null
+    : await loadTemplate(templateId);
   const memoTemplateSections =
     templateId === snapshot.rawTemplateId
       ? getMemoTemplateSections(snapshot, templateRecord?.sections ?? [])
@@ -116,6 +120,7 @@ async function transformArgs(
     dictionaryTerms: parseDictionaryTermsJson(
       settingsValues.personalization_dictionary_terms,
     ),
+    cleanTranscript,
   };
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   isPersonalSttVisible,
+  PERSONAL_AUTO_SUMMARY_DEFAULT,
   PERSONAL_DICTATION_SHORTCUT,
   PERSONAL_HIDE_ACCOUNT,
   PERSONAL_HIDE_APP_ICON_PICKER,
@@ -47,6 +48,16 @@ describe("personal fork flags", () => {
 
   test("devtools bar stays hidden by default", () => {
     expect(PERSONAL_HIDE_DEVTOOLS_BAR).toBe(true);
+  });
+
+  test("summaries are never generated automatically by default", () => {
+    expect(PERSONAL_AUTO_SUMMARY_DEFAULT).toBe(false);
+    expect(
+      resolveConfigValue("auto_enhance_after_transcript", {
+        values: {},
+        hasValues: new Set(),
+      }),
+    ).toBe(false);
   });
 
   test("dictation defaults to pressing Fn twice", () => {

@@ -1,4 +1,7 @@
-import { PERSONAL_DICTATION_SHORTCUT } from "~/shared/personal";
+import {
+  PERSONAL_AUTO_SUMMARY_DEFAULT,
+  PERSONAL_DICTATION_SHORTCUT,
+} from "~/shared/personal";
 
 export const SETTING_DEFINITIONS = {
   dictation_live_preview: {
@@ -275,7 +278,7 @@ export const SETTING_DEFINITIONS = {
   auto_enhance_after_transcript: {
     type: "boolean",
     path: ["ai", "auto_enhance_after_transcript"],
-    default: true as boolean,
+    default: PERSONAL_AUTO_SUMMARY_DEFAULT as boolean,
   },
   summary_length: {
     type: "string",

@@ -13,6 +13,7 @@ import type { EnhanceImageContext } from "./enhance-images";
 import { createEnhanceValidator } from "./enhance-validator";
 import { appendPreferredNamesGuidance } from "./preferred-names";
 
+import { buildCleanTranscriptPrompt } from "~/services/enhancer/clean-transcript";
 import {
   formatSummaryLengthModeGuidance,
   formatSummaryLengthGuidance,
@@ -46,6 +47,11 @@ async function* executeWorkflow(params: {
 }) {
   const { model, args, onProgress, signal } = params;
 
+  if (args.cleanTranscript) {
+    yield* generateCleanTranscript({ model, args, onProgress, signal });
+    return;
+  }
+
   const system = await getSystemPrompt(args);
   const prompt = withLengthGuidance(
     withImageContextNote(await getUserPrompt(args), args.imageContext.length),
@@ -63,6 +69,32 @@ async function* executeWorkflow(params: {
     onProgress,
     signal,
   });
+}
+
+// Personal fork: the clean transcript is as long as the transcript itself, so
+// it gets a larger output budget and skips the summary format validator.
+const CLEAN_TRANSCRIPT_MAX_OUTPUT_TOKENS = 32768;
+
+async function* generateCleanTranscript(params: {
+  model: LanguageModel;
+  args: TaskArgsMapTransformed["enhance"];
+  onProgress: (step: any) => void;
+  signal: AbortSignal;
+}) {
+  const { model, args, onProgress, signal } = params;
+  const { system, prompt } = buildCleanTranscriptPrompt(args.transcripts);
+
+  onProgress({ type: "generating" });
+
+  const result = streamText({
+    model,
+    system,
+    prompt,
+    abortSignal: signal,
+    maxRetries: AI_GENERATION_MAX_RETRIES,
+    maxOutputTokens: CLEAN_TRANSCRIPT_MAX_OUTPUT_TOKENS,
+  });
+  yield* result.fullStream;
 }
 
 async function getSystemPrompt(args: TaskArgsMapTransformed["enhance"]) {

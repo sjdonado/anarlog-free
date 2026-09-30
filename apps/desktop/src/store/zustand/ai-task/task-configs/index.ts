@@ -47,6 +47,8 @@ export interface TaskArgsMapTransformed {
       imageContext: EnhanceImageContext[];
       summaryLength: SummaryLengthMode;
       dictionaryTerms: string[];
+      // Personal fork: rewrite the transcript instead of summarizing it.
+      cleanTranscript?: boolean;
     };
   title: TitleSystem & TitleUser & { dictionaryTerms: string[] };
 }

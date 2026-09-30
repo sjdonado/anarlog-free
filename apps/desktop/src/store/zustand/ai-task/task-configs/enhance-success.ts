@@ -47,20 +47,23 @@ export const runEnhanceSuccess = async ({
   signal,
   onPersisted,
 }: EnhanceSuccessParams) => {
-  const lengthPolicy = transformedArgs.template?.sections.length
-    ? null
-    : getSummaryLengthPolicy(
-        transformedArgs.transcripts,
-        transformedArgs.summaryLength,
-        Boolean(transformedArgs.formatOverride.trim()),
-      );
+  const lengthPolicy =
+    transformedArgs.template?.sections.length || transformedArgs.cleanTranscript
+      ? null
+      : getSummaryLengthPolicy(
+          transformedArgs.transcripts,
+          transformedArgs.summaryLength,
+          Boolean(transformedArgs.formatOverride.trim()),
+        );
   const constrainedText = constrainSummaryLength(text, lengthPolicy);
   if (!constrainedText) {
     return;
   }
 
   const cloudsyncLeaseKey = `${taskId}:${id()}`;
-  const tagNames = extractEnhanceTagNames(constrainedText, transformedArgs);
+  const tagNames = transformedArgs.cleanTranscript
+    ? []
+    : extractEnhanceTagNames(constrainedText, transformedArgs);
   const textWithTags = appendTagLineToMarkdown(constrainedText, tagNames);
   const initialSnapshot = await loadSessionContentSnapshot(args.sessionId);
   if (!initialSnapshot) {

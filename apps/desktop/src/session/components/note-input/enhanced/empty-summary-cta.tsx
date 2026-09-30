@@ -7,7 +7,9 @@ import {
   TemplatePickerPopover,
   type TemplateSelection,
 } from "../template-picker";
+import { CleanTranscriptButton } from "./clean-transcript-button";
 
+import { isCleanTranscriptTemplate } from "~/services/enhancer/clean-transcript";
 import { useEnhancedNote } from "~/session/queries";
 
 /**
@@ -38,6 +40,22 @@ export function EmptySummaryCta({
     void onRegenerate(selection.templateId);
   };
 
+  if (isCleanTranscriptTemplate(usedTemplateId ?? undefined)) {
+    return (
+      <div className="border-border bg-card mb-4 flex flex-col gap-3 rounded-lg border p-4">
+        <p className="text-muted-foreground text-sm">
+          <Trans>
+            No clean transcript yet. Rewrite the transcript into readable
+            sentences and paragraphs, without summarizing it.
+          </Trans>
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <CleanTranscriptButton sessionId={sessionId} variant="default" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="border-border bg-card mb-4 flex flex-col gap-3 rounded-lg border p-4">
       <p className="text-muted-foreground text-sm">
@@ -59,6 +77,7 @@ export function EmptySummaryCta({
             </Button>
           }
         />
+        <CleanTranscriptButton sessionId={sessionId} />
       </div>
     </div>
   );
