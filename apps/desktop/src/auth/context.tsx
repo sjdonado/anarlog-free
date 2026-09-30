@@ -90,6 +90,7 @@ async function settleWithin<T>(
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
+  const [isFingerprintSettled, setIsFingerprintSettled] = useState(false);
   const [connectLibraryOpen, setConnectLibraryOpen] = useState(false);
   const promptedAccountRef = useRef<string | null>(null);
   const currentWindowLabel = getCurrentWebviewWindow().label;
@@ -150,13 +151,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return request;
   }, [currentWindowLabel]);
 
-  useEffect(() => {
-    miscCommands.getFingerprint().then((result) => {
-      if (result.status === "ok") {
-        setFingerprint(result.data);
-      }
-    });
-  }, []);
+  useMountEffect(() => {
+    void miscCommands
+      .getFingerprint()
+      .then((result) => {
+        if (result.status === "ok") {
+          setFingerprint(result.data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsFingerprintSettled(true));
+  });
 
   const setSessionFromTokens = useCallback(
     async (accessToken: string, refreshToken: string) => {
@@ -1110,6 +1115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       session,
       supabase,
+      isFingerprintSettled,
       signIn,
       signOut,
       refreshSession,
@@ -1122,6 +1128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       session,
+      isFingerprintSettled,
       signIn,
       signOut,
       refreshSession,

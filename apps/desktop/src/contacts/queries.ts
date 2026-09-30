@@ -25,6 +25,7 @@ type HumanSqlRow = {
 export type ContactSummaryRecord = {
   facts: string[];
   sourceHash: string;
+  promptKey: string;
   generatedAt: string;
   sources: Array<{ id: string; updatedAt: string }>;
 };
@@ -69,6 +70,7 @@ type OrganizationSqlRow = {
   pinned: boolean | number;
   pin_order: number | null;
   avatar_data_url: string | null;
+  team_workspace: boolean | number | null;
 };
 
 export type OrganizationRecord = {
@@ -80,6 +82,7 @@ export type OrganizationRecord = {
   pinned: boolean;
   pinOrder: number | null;
   avatarDataUrl: string | null;
+  teamWorkspace: boolean;
 };
 
 type OrganizationDisplaySqlRow = {
@@ -101,6 +104,12 @@ const CONTACT_SUMMARY_SQL = `CASE
   WHEN json_valid(metadata_json)
   THEN json_extract(metadata_json, '$.contactSummary')
 END AS contact_summary_json`;
+
+const TEAM_WORKSPACE_SQL = `CASE
+  WHEN json_valid(metadata_json)
+  THEN COALESCE(json_extract(metadata_json, '$.teamWorkspace'), 0)
+  ELSE 0
+END AS team_workspace`;
 
 type HumanSessionSqlRow = {
   id: string;
@@ -176,7 +185,8 @@ export function useOrganizations(): OrganizationRecord[] {
   >({
     sql: `
       SELECT id, owner_user_id, created_at, name, memo, pinned, pin_order,
-        ${AVATAR_SQL}
+        ${AVATAR_SQL},
+        ${TEAM_WORKSPACE_SQL}
       FROM organizations
       WHERE deleted_at IS NULL
       ORDER BY name, id
@@ -286,7 +296,8 @@ export async function loadOrganization(
   const rows = await liveQueryClient.execute<OrganizationSqlRow>(
     `
       SELECT id, owner_user_id, created_at, name, memo, pinned, pin_order,
-        ${AVATAR_SQL}
+        ${AVATAR_SQL},
+        ${TEAM_WORKSPACE_SQL}
       FROM organizations
       WHERE id = ? AND deleted_at IS NULL
       LIMIT 1
@@ -1064,6 +1075,7 @@ function parseContactSummary(value: string | null | undefined) {
     return {
       facts,
       sourceHash: parsed.sourceHash,
+      promptKey: typeof parsed.promptKey === "string" ? parsed.promptKey : "",
       generatedAt: parsed.generatedAt,
       sources,
     };
@@ -1082,6 +1094,7 @@ function mapOrganizationRow(row: OrganizationSqlRow): OrganizationRecord {
     pinned: Boolean(row.pinned),
     pinOrder: row.pin_order,
     avatarDataUrl: row.avatar_data_url ?? null,
+    teamWorkspace: Boolean(row.team_workspace),
   };
 }
 

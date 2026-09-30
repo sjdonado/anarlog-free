@@ -2,6 +2,7 @@
 
 mod calendar_ops;
 mod calendar_types;
+mod capture_lifecycle_ops;
 mod cloudsync;
 mod e2ee;
 mod event_ops;
@@ -12,6 +13,7 @@ mod session_ops;
 mod session_types;
 mod template_ops;
 mod template_types;
+mod transcript_live_ops;
 mod voiceprint_ops;
 mod voiceprint_types;
 mod webhook_ops;
@@ -19,6 +21,7 @@ mod webhook_types;
 
 pub use calendar_ops::*;
 pub use calendar_types::*;
+pub use capture_lifecycle_ops::*;
 pub use cloudsync::*;
 pub use e2ee::*;
 pub use event_ops::*;
@@ -29,6 +32,7 @@ pub use session_types::*;
 use sha2::{Digest, Sha384};
 pub use template_ops::*;
 pub use template_types::*;
+pub use transcript_live_ops::*;
 pub use voiceprint_ops::*;
 pub use voiceprint_types::*;
 pub use webhook_ops::*;
@@ -538,6 +542,11 @@ pub const APP_MIGRATION_STEPS: &[anlg_db_migrate::MigrationStep] = &[
         id: "20260916060000_local_library_write_times",
         scope: anlg_db_migrate::MigrationScope::Plain,
         sql: include_str!("../migrations/20260916060000_local_library_write_times.sql"),
+    },
+    anlg_db_migrate::MigrationStep {
+        id: "20260928030000_e2ee_witness_pending_priority",
+        scope: anlg_db_migrate::MigrationScope::Plain,
+        sql: include_str!("../migrations/20260928030000_e2ee_witness_pending_priority.sql"),
     },
 ];
 

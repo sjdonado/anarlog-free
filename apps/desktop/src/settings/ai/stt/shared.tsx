@@ -74,10 +74,8 @@ const OPENROUTER_MODEL_LABELS: Record<string, string> = {
 };
 
 const displayModelId = (model: string): string => {
-  if (model === "qwen3-asr-fast:free") return "Qwen3 ASR Fast (Free)";
-  if (model === "qwen3-asr:free") return "Qwen3 ASR (Free)";
-  if (model === "qwen3-asr-fast") return "Qwen3 ASR Fast (Partner)";
-  if (model === "qwen3-asr") return "Qwen3 ASR (Partner)";
+  if (model === "qwen3-asr-fast") return "Qwen3 ASR Fast";
+  if (model === "qwen3-asr") return "Qwen3 ASR";
 
   if (model === "cloud") {
     return "Pro (Cloud)";
@@ -393,7 +391,10 @@ const _PROVIDERS = [
     badge: "Recommended",
     builtIn: true,
     icon: <AnarlogProviderIcon />,
-    baseUrl: new URL("/stt", env.VITE_API_URL).toString(),
+    baseUrl: new URL(
+      "/stt",
+      env.VITE_AI_API_URL ?? env.VITE_API_URL,
+    ).toString(),
     models: ["cloud"],
     requirements: [],
   },
@@ -650,12 +651,7 @@ const _PROVIDERS = [
     badge: null,
     icon: <Waveform className="h-4 w-4" />,
     baseUrl: "https://api.narilabs.com",
-    models: [
-      "qwen3-asr-fast:free",
-      "qwen3-asr:free",
-      "qwen3-asr-fast",
-      "qwen3-asr",
-    ],
+    models: ["qwen3-asr-fast", "qwen3-asr"],
     requirements: [{ kind: "requires_config", fields: ["api_key"] }],
     links: {
       models: {

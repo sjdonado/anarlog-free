@@ -45,6 +45,7 @@ import {
   type TranscriptState,
 } from "./transcript";
 
+import { prepareSessionPeaks } from "~/audio-player/waveform";
 import { runMeetingCompletedAutomations } from "~/automations/engine";
 import { syncCloudApiSnapshotBestEffort } from "~/cloud-api/client";
 import { getSessionResourcePath } from "~/session/resource-path";
@@ -339,16 +340,42 @@ const createSessionEventHandlers = <T extends LiveStore>(
       get().resetTranscript();
     }
 
+    if (payload.audio_path) {
+      void prepareSessionPeaks(targetSessionId);
+    }
+
     const dispatchMeetingCompleted = () => {
       void localApiCommands.dispatchEvent("meeting.completed", targetSessionId);
       void runMeetingCompletedAutomations(targetSessionId);
     };
 
+    const acknowledgeStoppedCapture = () => {
+      void listenerCommands
+        .acknowledgeStoppedCapture(targetSessionId, payload.stopped_at_ms)
+        .then((result) => {
+          if (result.status === "error") {
+            console.error(
+              "[listener] failed to acknowledge stopped capture",
+              result.error,
+            );
+          }
+        })
+        .catch((error) => {
+          console.error(
+            "[listener] failed to acknowledge stopped capture",
+            error,
+          );
+        });
+    };
+
     if (onStopped) {
-      const finishPostStopProcessing = () => {
+      const finishPostStopProcessing = (acknowledge: boolean) => {
         setLiveState(set, (live) => {
           delete live.postStopProcessingBySession[targetSessionId];
         });
+        if (acknowledge) {
+          acknowledgeStoppedCapture();
+        }
         dispatchMeetingCompleted();
       };
       try {
@@ -363,17 +390,18 @@ const createSessionEventHandlers = <T extends LiveStore>(
           needsBatchRepair,
         });
         void Promise.resolve(stopped).then(
-          finishPostStopProcessing,
+          () => finishPostStopProcessing(true),
           (error) => {
-            finishPostStopProcessing();
+            finishPostStopProcessing(false);
             console.error("[listener] post-stop processing failed", error);
           },
         );
       } catch (error) {
-        finishPostStopProcessing();
+        finishPostStopProcessing(false);
         console.error("[listener] post-stop processing failed", error);
       }
     } else {
+      acknowledgeStoppedCapture();
       dispatchMeetingCompleted();
     }
   },
@@ -845,8 +873,14 @@ function applyCaptureSnapshot<T extends LiveStore>(
         intervalId,
         snapshot.requestedLiveTranscription ?? true,
         snapshot.liveTranscriptionActive ?? true,
-        null,
+        snapshot.degraded ?? null,
       );
+      if (snapshot.startedAtMs != null) {
+        live.seconds = elapsedSecondsSince(snapshot.startedAtMs);
+      }
+      if (snapshot.micMuted != null) {
+        live.muted = snapshot.micMuted;
+      }
     });
     return;
   }
@@ -951,3 +985,6 @@ export const stopLiveSession = <T extends GeneralState>(
     });
   });
 };
+
+const elapsedSecondsSince = (startedAtMs: number) =>
+  Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
