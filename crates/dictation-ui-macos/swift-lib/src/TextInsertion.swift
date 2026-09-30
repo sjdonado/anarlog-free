@@ -1,3 +1,4 @@
+import Carbon
 import Cocoa
 import SwiftRs
 
@@ -21,6 +22,9 @@ private final class DictationPasteProvider: NSObject, NSPasteboardItemDataProvid
 private final class DictationTarget {
   static let shared = DictationTarget()
   var element: AXUIElement?
+  // Personal fork: apps whose focused view is not an accessible text field
+  // (terminals such as Ghostty) are targeted by process and receive a paste.
+  var pastePid: pid_t?
   var token = ""
   var clipboardSnapshot: [NSPasteboardItem]?
   var clipboardChangeCount: Int?
@@ -41,6 +45,22 @@ private final class DictationTarget {
     return element
   }
 
+  func isSecure(_ element: AXUIElement) -> Bool {
+    var subrole: CFTypeRef?
+    AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subrole)
+    return subrole as? String == kAXSecureTextFieldSubrole
+  }
+
+  func frontmostPasteTarget(_ focused: AXUIElement?) -> pid_t? {
+    if let focused, isSecure(focused) { return nil }
+    // Terminals turn on Secure Keyboard Entry for password prompts.
+    if IsSecureEventInputEnabled() { return nil }
+    guard let app = NSWorkspace.shared.frontmostApplication,
+      app.processIdentifier != ProcessInfo.processInfo.processIdentifier
+    else { return nil }
+    return app.processIdentifier
+  }
+
   func acceptsText(_ element: AXUIElement) -> Bool {
     var role: CFTypeRef?
     var subrole: CFTypeRef?
@@ -57,20 +77,35 @@ private final class DictationTarget {
 
   func capture() -> String {
     element = nil
-    guard let focused = focusedElement(), acceptsText(focused) else {
+    pastePid = nil
+    let focused = focusedElement()
+    if let focused, acceptsText(focused) {
+      element = focused
+    } else if AXIsProcessTrusted(), let pid = frontmostPasteTarget(focused) {
+      pastePid = pid
+    } else {
       return
         "Focus an editable text field and enable Anarlog in System Settings > Privacy & Security > Accessibility. Password fields are excluded."
     }
     token = UUID().uuidString
-    element = focused
     return "ok:" + token
   }
 
   func insert(token: String, text: String) -> String {
-    guard token == self.token, let target = element, let focused = focusedElement(),
+    let changed =
+      "The focused text field changed. Copy your last dictation from Settings > Dictation."
+    guard token == self.token else { return changed }
+    if let pid = pastePid {
+      pastePid = nil
+      guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
+        frontmostPasteTarget(focusedElement()) == pid
+      else { return changed }
+      return paste(text)
+    }
+    guard let target = element, let focused = focusedElement(),
       CFEqual(target, focused), acceptsText(focused)
     else {
-      return "The focused text field changed. Copy your last dictation from Settings > Dictation."
+      return changed
     }
     element = nil
 
@@ -80,6 +115,10 @@ private final class DictationTarget {
     {
       return ""
     }
+    return paste(text)
+  }
+
+  private func paste(_ text: String) -> String {
     guard let source = CGEventSource(stateID: .combinedSessionState),
       let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
       let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)

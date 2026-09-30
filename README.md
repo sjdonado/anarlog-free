@@ -16,12 +16,25 @@ All personal behavior is gated behind flags in one file, `apps/desktop/src/share
 * Local Pro. Every feature gate reads Pro, so the dictionary, templates, automations, sync UI, app icons, provider entitlements, and everything behind an upgrade prompt is unlocked. No checkout, trial, or paywall dialogs. The auth stack itself is untouched, so signing in and every account-gated feature works exactly as upstream.
 * Teams, Account, Billing, Sync, and CRM screens are hidden from Settings, along with Cloud API and Connectors in Developers. The underlying modules stay intact.
 * Transcription providers are filtered, not deleted. The dropdowns keep the built-ins (Anarlog Cloud, on-device, local file, Apple Speech) plus OpenAI, ElevenLabs, Groq, OpenRouter, and Custom. Everything else is hidden but still defined, so upstream provider updates merge cleanly.
+* Press Fn / Globe twice to dictate. A new `DoubleFn` shortcut starts dictation on a quick double press and stops it on the next single press, like macOS dictation; Escape cancels. A single tap, a long hold, or an Fn+key combination does nothing. It is the default shortcut (`PERSONAL_DICTATION_SHORTCUT`) and has its own "Fn / Globe twice" button next to the existing hold-to-talk options.
+* Dictation types into terminals. Apps whose focused view is not an accessible text field (Ghostty and other terminals) receive the transcript as a paste into the frontmost app, with the clipboard restored afterwards. Password fields and Secure Keyboard Entry (for example a `sudo` prompt) still refuse.
 * Dictation arms without a signed-in session, so it works on a local build instead of sitting on "Setting up dictation…". Billing readiness is likewise treated as ready when signed out, because the disabled entitlements query never settles.
 * The floating "Ask anything" chat bar is hidden at the bottom of a session. The chat implementation stays intact.
 * Summaries are manual by choice. A new "Auto-generate summary" switch (default on, upstream behavior) lets transcripts stay as transcripts. An empty summary shows an explicit "Generate summary" button plus "Choose template", and the blank editor stays available for manual writing.
 * Speaker names before recording. Pressing Record on a session with no participants asks who is in the meeting. Names become session participants, which feed transcription keywords and speaker-count hints. ElevenLabs requests now carry `keyterms` (batch and realtime, sanitized to API limits) and OpenAI whisper-family requests carry the names via `prompt`.
+* Current ChatGPT models. The ChatGPT subscription picker asks the Codex catalog for models with a pinned client version, and the catalog hides every model that needs a newer client. The pin tracks the current `@openai/codex` release so new families (GPT 6) show up.
 * Quieter dev builds. React render outlines default off (toggle remains in the devtools bar) and the devtools stats bar is hidden by default.
 * macOS Tahoe icons. The in-app icon picker is hidden, and the dev bundle ships its layered icon (`Assets.car` is kept instead of discarded) so the Dock renders Dark, Clear, and Tinted variants. The app keeps the system icon for the default choice instead of pinning a flat image at launch.
+
+## My setup
+
+These are the settings I use day to day. They are stored in the app's settings database, not in this repository, so a fresh build starts from the defaults and needs them set once by hand.
+
+* **Transcription:** Settings > Transcription > Soniqo, model Parakeet (streaming). It runs on-device, so meetings and dictation transcribe without a cloud key.
+* **Summaries:** Settings > Intelligence > ChatGPT (subscription sign-in), model GPT 6 Luna, reasoning effort Default.
+* **Dictation:** Settings > Dictation > Enable dictation, hands-free on, shortcut "Fn / Globe twice". macOS must allow Anarlog Dev under Privacy & Security > Accessibility and > Input Monitoring. Set System Settings > Keyboard > "Press 🌐 key to" to "Do Nothing" and turn off the macOS Dictation shortcut, so the double press reaches Anarlog and not the emoji picker or Apple dictation.
+* **Dictionary:** Settings > Dictionary holds names and domain terms. Dictation and meeting transcription send them to the speech model as keywords, so they come back spelled correctly.
+* **Templates:** summaries are generated on demand from a template (Settings > Templates), with "Auto-generate summary" off. An empty summary offers "Generate summary" and "Choose template".
 
 ## Build it locally
 
@@ -55,12 +68,14 @@ This fork tracks upstream `main` (`https://github.com/fastrepl/anarlog`). A sync
 
 ### Local build workarounds on this machine
 
-macOS 27 with Xcode 27 needs four local workarounds. `bash .agent/build-desktop-local.sh` applies all of them and builds the app; none of them belong in a commit:
+macOS 27 with Xcode 27 needs five local workarounds. `bash .agent/build-desktop-local.sh` applies all of them and builds the app; none of them belong in a commit:
 
 - Build Rust with `RUSTFLAGS="-C strip=none"`. Without it, cargo's `-C strip=debuginfo` for dependencies plus the deployment target produces proc-macro dylibs macOS refuses to load, which surfaces as a misleading `sqlx` unresolved-import error.
 - Install the Metal toolchain once per Xcode upgrade: `xcodebuild -downloadComponent MetalToolchain`. The Soniqo build needs it.
 - `chmod -R u+w` the `transcribe-soniqo` build checkout before a build. Upstream's `build.rs` mishandles group-writable files and panics patching the Swift manifest.
 - Bridge the Swift archive path while the build runs: Swift 6.4 writes products to `out/Products/Debug`, while the `swift-rs` wrapper links against `arm64-apple-macosx/debug`. Every swift crate (`soniqo`, `apple-speech`, `windows`, `tcc`, `intercept`, `notification`, `local-llm`, `dictation-ui`) hits this, and build dirs churn per run, so the script keeps a background watcher that symlinks the two paths as they appear.
+
+- Sign with a real certificate (`APPLE_SIGNING_IDENTITY`, an Apple Development identity). An ad-hoc signature changes on every rebuild. macOS then keeps showing the old Accessibility and Input Monitoring grants as enabled, but they no longer match the binary, and dictation fails with "failed to create CGEventTap". A certificate keeps the app's designated requirement stable, so the grants survive rebuilds. After switching from ad-hoc, reset once with `tccutil reset Accessibility com.hyprnote.dev` and `tccutil reset ListenEvent com.hyprnote.dev`, then grant again.
 
 `npx --yes pnpm@11.1.1 -F @anlg/desktop exec tauri build --debug` also needs `TAURI_SIGNING_PRIVATE_KEY` to finish the very last packaging step; without it the build still produces the `.app`, which is all this fork needs.
 
