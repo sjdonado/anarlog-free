@@ -10,7 +10,7 @@ There are no releases here and there will never be a public binary to download. 
 
 ## What is different from upstream
 
-All personal behavior is gated behind flags in one file, `apps/desktop/src/shared/personal.ts`, so merging upstream `main` back in stays as painless as possible. Guard tests (`personal.test.ts` and friends) fail loudly if an upstream update ever flips one of these flags back.
+`FORK.md` is the full contract for these features: for each one, its intent, the behavior that must survive upstream updates, how to verify it end to end, and where it is implemented today. Switchable behavior is gated behind flags in `apps/desktop/src/shared/personal.ts`, and guard tests (`personal.test.ts` and friends) fail loudly if an upstream update flips one back. In short:
 
 * Automatic updates are off. The setting stays visible but is forced off and disabled, and the update banner and periodic checks are silenced. Manual tray/dock update items are untouched.
 * Local Pro. Every feature gate reads Pro, so the dictionary, templates, automations, sync UI, app icons, provider entitlements, and everything behind an upgrade prompt is unlocked. No checkout, trial, or paywall dialogs. The auth stack itself is untouched, so signing in and every account-gated feature works exactly as upstream.
@@ -34,7 +34,7 @@ These are the settings I use day to day. They are stored in the app's settings d
 * **Transcription:** Settings > Transcription > Soniqo, model Parakeet (streaming). It runs on-device, so meetings and dictation transcribe without a cloud key.
 * **Summaries:** Settings > Intelligence > ChatGPT (subscription sign-in), model GPT 6 Luna, reasoning effort Default.
 * **Dictation:** Settings > Dictation > Enable dictation, hands-free on, shortcut "Fn / Globe twice". macOS must allow Anarlog Dev under Privacy & Security > Accessibility and > Input Monitoring. Set System Settings > Keyboard > "Press 🌐 key to" to "Do Nothing" and turn off the macOS Dictation shortcut, so the double press reaches Anarlog and not the emoji picker or Apple dictation.
-* **Dictionary:** Settings > Dictionary holds names and domain terms. Dictation and meeting transcription send them to the speech model as keywords, so they come back spelled correctly.
+* **Dictionary:** Settings > Dictionary holds names and domain terms. They are sent to the speech model as keywords and to summaries as preferred names. Soniqo Parakeet has no keyword input, so with this setup the dictionary does not affect transcription or dictation; it still applies to summaries.
 * **Templates:** summaries are generated on demand from a template (Settings > Templates); "Auto-generate summary" stays off. After a meeting, I click "Generate summary", "Clean up transcript", or both. An empty summary offers "Generate summary" and "Choose template".
 
 ## Build it locally
@@ -62,9 +62,9 @@ To pull upstream updates: merge or rebase upstream `main` into your personal bra
 This fork tracks upstream `main` (`https://github.com/fastrepl/anarlog`). A sync is not finished until the app is rebuilt and the custom patches are proven intact — never stop at "contests resolved":
 
 1. `git fetch upstream && git merge upstream/main` on a sync branch. Resolve `README.md` with `--ours`, take upstream's i18n catalogs and regenerate them, and keep both sides of small conflicts (for example upstream's new settings section plus our gated one).
-2. Sweep for every personal flag and Rust patch (the full list lives in `AGENTS.md`). A zero count means a dropped customization.
+2. For every feature in `FORK.md`, find where it lives in the new code. Upstream refactors move code, so the goal is the feature's behavior, not the old lines: re-apply the patch where the behavior now lives and update the anchors in `FORK.md`.
 3. Run the behavioral checks: `pnpm -F @anlg/ui build`, `pnpm -F @anlg/desktop typecheck`, `pnpm -F @anlg/desktop test`, `cargo test --locked -p owhisper-client`, then `lingui extract` + `compile` and confirm the catalogs settle.
-4. Rebuild `Anarlog Dev.app`, reinstall it to `/Applications` (that is what Raycast launches), and open it to confirm the custom behavior works.
+4. Rebuild `Anarlog Dev.app`, reinstall it to `/Applications` (that is what Raycast launches), and run each feature's end-to-end check from `FORK.md`.
 5. Merge the sync branch to `main` only after all of the above is green.
 
 ### Local build workarounds on this machine

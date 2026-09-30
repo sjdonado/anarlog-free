@@ -7,6 +7,7 @@ import {
   PERSONAL_HIDE_ACCOUNT,
   PERSONAL_HIDE_APP_ICON_PICKER,
   PERSONAL_HIDE_BILLING,
+  PERSONAL_HIDE_CHAT_CTA,
   PERSONAL_HIDE_CLOUD_API,
   PERSONAL_HIDE_CRM,
   PERSONAL_HIDE_DEVTOOLS_BAR,
@@ -18,6 +19,7 @@ import {
   PERSONAL_VISIBLE_STT_IDS,
 } from "./personal";
 
+import { areRenderOutlinesEnabled } from "~/devtools-bar/render-tracker";
 import { resolveConfigValue } from "~/shared/config";
 
 // Personal fork contract: these flags must survive upstream merges. If an
@@ -44,6 +46,14 @@ describe("personal fork flags", () => {
   test("icon picker stays hidden and native variants stay on", () => {
     expect(PERSONAL_HIDE_APP_ICON_PICKER).toBe(true);
     expect(PERSONAL_NATIVE_ICON_VARIANTS).toBe(true);
+  });
+
+  test("render outlines start off", () => {
+    expect(areRenderOutlinesEnabled()).toBe(false);
+  });
+
+  test("floating chat bar stays hidden", () => {
+    expect(PERSONAL_HIDE_CHAT_CTA).toBe(true);
   });
 
   test("devtools bar stays hidden by default", () => {
