@@ -261,7 +261,7 @@ struct FloatingBarView: View {
               height: FloatingBarLayout.waveformHeight
             )
         } else {
-          DancingBars(color: accentColor, amplitude: model.amplitude)
+          DancingBars(color: accentColor, levels: model.levels)
             .frame(
               width: FloatingBarLayout.waveformWidth,
               height: FloatingBarLayout.waveformHeight
@@ -747,39 +747,34 @@ private struct ErrorMark: View {
   }
 }
 
+// Personal fork (FORK.md, "Live waveform"): bars follow the recent loudness
+// readings, newest in the center spreading outwards, instead of a fixed sine.
 struct DancingBars: View {
   let color: Color
-  let amplitude: Double
+  let levels: [Double]
 
-  private let barCount = 5
   private let barWidth: CGFloat = 3
   private let barSpacing: CGFloat = 2
   private let minHeight: CGFloat = 4
   private let maxHeight: CGFloat = 20
 
   var body: some View {
-    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { timeline in
-      HStack(spacing: barSpacing) {
-        let t = timeline.date.timeIntervalSinceReferenceDate
-        ForEach(0..<barCount, id: \.self) { index in
-          Capsule(style: .continuous)
-            .fill(color)
-            .frame(width: barWidth, height: barHeight(index: index, time: t))
-        }
+    HStack(spacing: barSpacing) {
+      ForEach(0..<levels.count, id: \.self) { index in
+        Capsule(style: .continuous)
+          .fill(color)
+          .frame(width: barWidth, height: barHeight(index: index))
       }
-      .frame(maxHeight: .infinity, alignment: .center)
     }
+    .frame(maxHeight: .infinity, alignment: .center)
+    .animation(.easeOut(duration: 0.12), value: levels)
   }
 
-  private func barHeight(index: Int, time: TimeInterval) -> CGFloat {
-    let normalized = min(max(amplitude, 0), 1)
-    let center = Double(barCount - 1) / 2
-    let distance = abs(Double(index) - center) / max(center, 1)
-    let envelope = 1 - distance * 0.42
-    let phase = time * 8.5 + Double(index) * 0.68
-    let wave = sin(phase) * 0.5 + 0.5
-    let drive = 0.4 + normalized * 0.9
-    let height = maxHeight * CGFloat(drive * envelope * (0.4 + wave * 0.6))
-    return max(minHeight, min(maxHeight, height))
+  private func barHeight(index: Int) -> CGFloat {
+    let center = (levels.count - 1) / 2
+    let distance = abs(index - center)
+    let level = min(max(levels[max(levels.count - 1 - distance, 0)], 0), 1)
+    let envelope = 1 - Double(distance) * 0.15
+    return minHeight + (maxHeight - minHeight) * CGFloat(level * envelope)
   }
 }

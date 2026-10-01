@@ -156,6 +156,9 @@ final class FloatingBarManager {
 
   private func applyAmplitude(_ amplitude: Double) {
     let amplitude = min(max(amplitude, 0), 1)
+    // Personal fork: every reading scrolls the waveform, even a repeated one,
+    // so silence settles the bars instead of freezing the last spoken level.
+    model.levels = Array((model.levels + [amplitude]).suffix(model.levels.count))
     guard model.amplitude != amplitude else { return }
     model.amplitude = amplitude
   }

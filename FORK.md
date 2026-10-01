@@ -119,13 +119,24 @@ The sync procedure itself lives in `AGENTS.md` ("Fork: upstream sync procedure")
 - **Current anchors:** `lid_closed_input_override` and `pick_lid_closed_input` in `crates/audio-device/src/lid_closed.rs` (lid state from `ioreg AppleClamshellState`); its call at the top of `new_locked` in `crates/audio-actual/src/mic.rs`.
 - **Not yet built:** connecting paired AirPods that are not connected (IOBluetooth `openConnection`, needs `NSBluetoothAlwaysUsageDescription`). Planned as the next step.
 
+### 10. Live waveform
+
+- **Intent:** the waveform in the floating bar shows that the microphone actually hears me, so a dead or wrong mic is visible at a glance.
+- **Behavior:**
+  - The bars follow the real input loudness: the newest reading in the center, older readings spreading outwards. Silence settles them near flat; speaking moves them with the voice. There is no fixed animation.
+  - Dictation reports loudness on the same decibel scale as meeting recording (-60 dB to 0 dB), so normal speech fills the bars instead of staying near the floor.
+  - Meeting recording uses the same bars, so its waveform follows real audio too.
+- **Upstream first:** if upstream makes the floating bar reflect real audio, prefer its version, delete these patches, and check the Verify steps on upstream's code.
+- **Verify:** `speech_level_uses_the_meeting_decibel_scale` in `plugins/dictation/src/recorder.rs` (needs the Swift link workaround to run locally). In the app: start dictation, stay silent (bars flat), then speak (bars move with the voice); do the same during a meeting recording.
+- **Current anchors:** `speech_level` in `plugins/dictation/src/recorder.rs`; `levels` in `plugins/windows/swift-lib/src/FloatingBarViewModel.swift`, filled in `applyAmplitude` in `FloatingBarManager.swift`, and drawn by `DancingBars` in `FloatingBarView.swift`.
+
 ### Known limitation: dictionary with Soniqo
 
 Dictation and meeting transcription send the dictionary to the speech engine as keywords, but Soniqo Parakeet takes no keyword input (`crates/transcribe-soniqo`), so the terms have no effect with that engine. Summaries still receive them as preferred names. Decided on 2026-09-30 to leave this as is; revisit if Soniqo gains context biasing or if dictation moves to a keyword-capable engine (ElevenLabs `keyterms`, OpenAI `prompt`). A port of Handy's custom-words correction was tried on 2026-10-01 and reverted.
 
 ## Summaries and transcripts
 
-### 10. Summaries are manual
+### 11. Summaries are manual
 
 - **Intent:** nothing is sent to a language model unless I ask for it.
 - **Behavior:**
@@ -134,7 +145,7 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 - **Verify:** `shared/personal.test.ts` (default resolves to `false`), `services/enhancer/index.test.ts` (auto-enhance skipped when disabled), `session/components/note-input/enhanced/empty-summary-cta.test.tsx`. In the app: record a short meeting, stop, and confirm the summary stays empty with the three buttons.
 - **Current anchors:** `PERSONAL_AUTO_SUMMARY_DEFAULT` as the default of `auto_enhance_after_transcript` in `settings/schema.ts`; `isAutoEnhanceAllowed` in `services/enhancer/index.ts`; `isAutoEnhanceEnabled` in `main/lifecycle.tsx`; `autoEnhanceEnabled` in `stt/capture-lifecycle.ts`; `EmptySummaryCta` in `session/components/note-input/enhanced/`.
 
-### 11. Clean transcript tab
+### 12. Clean transcript tab
 
 - **Intent:** read a meeting as clean prose. The raw transcript is written for machines (fragments, one word per line, interleaved speakers), and a summary loses detail.
 - **Behavior:**
@@ -146,7 +157,7 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 - **Verify:** `services/enhancer/clean-transcript.test.ts` (prompt building, regrouping, tab order), `empty-summary-cta.test.tsx`. In the app: open a recorded meeting, confirm the tab order Summary, Memos, Clean transcript, Transcript, then generate and confirm paragraphs per speaker turn, not one line per sentence. Prompt quality is measured with the offline benchmark in `.agent/bench/clean-transcript/` (local, not committed).
 - **Current anchors:** `services/enhancer/clean-transcript.ts` (reserved template id `personal:clean-transcript`, prompts, regrouping, `placeCleanTranscriptTab`); `cleanTranscript` in `store/zustand/ai-task/task-configs/{index,enhance-transform,enhance-workflow,enhance-success}.ts`; `CleanTranscriptButton` in `session/components/note-input/enhanced/{clean-transcript-button,empty-summary-cta}.tsx`; `useEnsureCleanTranscriptNote` and the tab reorder in `session/index.tsx` and `session/components/note-input/header.tsx`; the `ORDER BY` in `session/queries/enhanced-notes.ts`; the icon and missing picker in `session/components/note-input/header-enhanced.tsx`.
 
-### 12. No floating chat bar
+### 13. No floating chat bar
 
 - **Intent:** a note is for reading and writing, not chatting.
 - **Behavior:** the floating "Ask anything" bar does not appear at the bottom of a session. The chat implementation stays intact.
@@ -155,7 +166,7 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 
 ## Language models
 
-### 13. Current ChatGPT models
+### 14. Current ChatGPT models
 
 - **Intent:** the ChatGPT subscription offers the newest model families as soon as OpenAI ships them.
 - **Behavior:** Settings > Intelligence > ChatGPT lists the current families (today GPT 6 Sol, Terra, and Luna). The Codex catalog hides models whose minimum client version is newer than the one we send, so the version we send tracks the current `@openai/codex` release and never falls below upstream's.
@@ -164,14 +175,14 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 
 ## Developer builds and appearance
 
-### 14. Quieter dev builds
+### 15. Quieter dev builds
 
 - **Intent:** a dev build used daily looks like a normal app.
 - **Behavior:** React render outlines are off by default (the toggle remains in the devtools bar), and the devtools stats bar is hidden by default.
 - **Verify:** `shared/personal.test.ts`. In the app: no outlines and no stats bar at launch.
 - **Current anchors:** `PERSONAL_HIDE_DEVTOOLS_BAR` in `devtools-bar/index.tsx`; `outlinesEnabled = false` in `devtools-bar/render-tracker.ts`.
 
-### 15. macOS layered icon
+### 16. macOS layered icon
 
 - **Intent:** the Dock icon follows the system appearance (Dark, Clear, Tinted).
 - **Behavior:** the in-app icon picker is hidden, the dev bundle ships its layered icon (`Assets.car`), and the default icon uses the system variants instead of a flat image pinned at launch.

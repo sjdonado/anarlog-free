@@ -217,7 +217,7 @@ async fn record_to_file(
                 sample_count += samples.len() as u64;
                 if let Some(updates) = &updates {
                     let rms = (samples.iter().map(|s| f64::from(*s).powi(2)).sum::<f64>() / samples.len().max(1) as f64).sqrt();
-                    let _ = updates.send(RecordingUpdate::Amplitude { amplitude: (rms * 8.0).clamp(0.0, 1.0) });
+                    let _ = updates.send(RecordingUpdate::Amplitude { amplitude: speech_level(rms) });
                     if preview.as_ref().is_some_and(|preview| !preview.send(&samples)) {
                         preview = None;
                     }
@@ -246,6 +246,18 @@ async fn record_to_file(
     })
 }
 
+// Personal fork (FORK.md, "Live waveform"): loudness on the same decibel scale
+// as meeting recording (-60 dB to 0 dB -> 0..1), so normal speech fills the
+// waveform instead of staying near the floor of the old linear `rms * 8`.
+fn speech_level(rms: f64) -> f64 {
+    const MIN_DB: f64 = -60.0;
+    const MAX_DB: f64 = 0.0;
+    if rms.is_nan() || rms <= 0.0 {
+        return 0.0;
+    }
+    ((20.0 * rms.log10() - MIN_DB) / (MAX_DB - MIN_DB)).clamp(0.0, 1.0)
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -254,6 +266,16 @@ mod tests {
     use futures_util::stream;
 
     use super::*;
+
+    #[test]
+    fn speech_level_uses_the_meeting_decibel_scale() {
+        assert_eq!(speech_level(0.0), 0.0);
+        assert_eq!(speech_level(f64::NAN), 0.0);
+        assert!((speech_level(1.0) - 1.0).abs() < 1e-9);
+        assert!((speech_level(0.001) - 0.0).abs() < 1e-9);
+        // Normal speech around -30 dB lands mid-scale, not near the floor.
+        assert!((speech_level(0.0316) - 0.5).abs() < 0.01);
+    }
 
     struct TestAudio;
 
