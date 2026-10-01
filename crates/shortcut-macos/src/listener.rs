@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    hotkey::HotKey,
+    hotkey::{HotKey, Modifier},
     processor::{HotKeyProcessor, Options, Output},
     tap::{EventTap, TapError, TapEvent},
 };
@@ -28,9 +28,13 @@ impl Listener {
                     TapEvent::Key(k) => p.process_key(k),
                     TapEvent::MouseClick => p.process_mouse_click(),
                 };
-                let consume = hotkey.is_modifier_only()
+                let consume = (hotkey.is_modifier_only()
                     && matches!(event, TapEvent::Key(k) if k.key.is_none())
-                    && out.is_some();
+                    && out.is_some())
+                    // Personal fork: Fn+Esc cancels dictation without the Esc
+                    // reaching the focused app (for example interrupting a CLI).
+                    || (matches!(out, Some(Output::Cancel))
+                        && matches!(event, TapEvent::Key(k) if k.modifiers.contains(Modifier::Fn)));
                 (out, consume)
             };
             if let Some(out) = out {

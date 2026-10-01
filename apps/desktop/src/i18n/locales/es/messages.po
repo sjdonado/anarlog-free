@@ -4304,6 +4304,10 @@ msgstr "Preparando…"
 msgid "Press Escape to cancel. Dictation stops after five minutes and pauses while Anarlog records a meeting."
 msgstr "Pulsa Escape para cancelar. El dictado se detiene a los cinco minutos y se pausa mientras Anarlog graba una reunión."
 
+#: src/settings/dictation.tsx
+msgid "Press Fn twice to start and twice again to finish. Fn + Escape cancels without inserting text."
+msgstr ""
+
 #: src/settings/dictation-shortcut.tsx
 msgid "Press shortcut…"
 msgstr "Pulsa el atajo…"

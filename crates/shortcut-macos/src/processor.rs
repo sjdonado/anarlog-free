@@ -225,6 +225,20 @@ impl HotKeyProcessor {
                 }
             }
             State::PressAndHold { .. } => None,
+            // Personal fork: double-press mode stops the same way it starts, so a
+            // single Fn tap (for example the Fn of Fn+Esc) never ends dictation.
+            State::DoubleTapLock if self.is_double_press_modifier_only() => {
+                let now = self.clock.now();
+                if let Some(prev) = self.last_tap_at.take()
+                    && now.saturating_duration_since(prev) < DOUBLE_PRESS_WINDOW
+                {
+                    self.tap_pressed_at = None;
+                    self.state = State::Idle;
+                    return Some(Output::StopRecording);
+                }
+                self.tap_pressed_at = Some(now);
+                None
+            }
             State::DoubleTapLock => {
                 self.state = State::Idle;
                 self.last_tap_at = None;
@@ -301,6 +315,16 @@ impl HotKeyProcessor {
                         None
                     }
                 }
+            }
+            State::DoubleTapLock if self.is_double_press_modifier_only() => {
+                let now = self.clock.now();
+                if self.chord_fully_released(event)
+                    && let Some(pressed) = self.tap_pressed_at.take()
+                    && now.saturating_duration_since(pressed) < MODIFIER_ONLY_MIN
+                {
+                    self.last_tap_at = Some(now);
+                }
+                None
             }
             State::DoubleTapLock => {
                 if self.is_double_tap_only_for_current_hotkey() && self.chord_fully_released(event)

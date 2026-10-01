@@ -103,7 +103,13 @@ export function SettingsDictation() {
           <SettingSwitchRow
             title={<Trans>Hands-free dictation</Trans>}
             description={
-              handsFree ? (
+              // Personal fork: the double-press shortcut is always hands-free.
+              shortcut === "DoubleFn" ? (
+                <Trans>
+                  Press Fn twice to start and twice again to finish. Fn + Escape
+                  cancels without inserting text.
+                </Trans>
+              ) : handsFree ? (
                 <Trans>
                   Press your shortcut to start, then press it again to finish.
                 </Trans>

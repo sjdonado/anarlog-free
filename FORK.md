@@ -14,7 +14,7 @@ Upstream keeps moving. A sync brings in bug fixes, refactors, and new features, 
 Porting rules:
 
 - Prefer the smallest patch that restores the behavior on the new code. Gate it behind a flag in `apps/desktop/src/shared/personal.ts` when the feature is a switch, and keep fork-only logic in fork-only files where possible.
-- If upstream now ships the same behavior, drop our patch and note it here. Do not keep a duplicate.
+- Upstream first: if upstream now ships the same behavior or fixes the same bug, prefer upstream's implementation, even when it differs in details, as long as the feature's Behavior lines still hold. Drop our patch, re-run the Verify steps on upstream's code, and note the change in the feature's entry. Never keep a duplicate.
 - If upstream changes the premise of a feature (for example, it removes the screen we hide), decide with the owner whether the intent still applies before porting.
 - A feature is ported only when its end-to-end check passes in the rebuilt app. A green test suite alone is not enough.
 - When a feature is added, changed, or removed, update this file in the same change.
@@ -86,12 +86,13 @@ The sync procedure itself lives in `AGENTS.md` ("Fork: upstream sync procedure")
 
 - **Intent:** dictation feels like macOS dictation: double-press Fn / Globe, speak, press once to finish.
 - **Behavior:**
-  - A quick double press of Fn starts dictation. The next single press stops it and inserts the text. Escape cancels.
+  - A quick double press of Fn starts dictation, and another quick double press stops it and inserts the text. A single Fn tap while dictating does nothing.
+  - Fn + Escape cancels: the recording is discarded, no text is inserted, and the Escape never reaches the focused app (so it cannot interrupt a CLI such as Claude Code). Plain Escape also cancels, as upstream, but it still reaches the app.
   - A single tap, a long hold, or Fn plus another key does nothing.
   - It works with hands-free mode on or off.
   - It is the default shortcut for fresh settings, and Settings > Dictation offers it as "Fn / Globe twice" next to the hold-to-talk options.
-- **Verify:** `cargo test --locked -p shortcut-macos` (the `double_press_*` tests), `cargo test --locked -p tauri-plugin-shortcut`, `shared/personal.test.ts`. In the app: in any text field, double-press Fn, speak, press Fn once, and confirm the text appears.
-- **Current anchors:** `is_double_press_modifier_only` and `DOUBLE_PRESS_WINDOW` in `crates/shortcut-macos/src/{processor,decision}.rs`; `"DoubleFn"` in `plugins/shortcut/src/global.rs`; `PERSONAL_DICTATION_SHORTCUT` in `settings/schema.ts`; the `DoubleFn` button and label in `settings/dictation-shortcut.tsx`; the hands-free override in `dictation/lifecycle.tsx`.
+- **Verify:** `cargo test --locked -p shortcut-macos` (the `double_press_*` tests, including Fn + Escape), `cargo test --locked -p tauri-plugin-shortcut`, `shared/personal.test.ts`. In the app: in any text field, double-press Fn, speak, double-press Fn again, and confirm the text appears; then start again, press Fn + Escape, and confirm nothing is inserted and the app did not receive Escape.
+- **Current anchors:** `is_double_press_modifier_only` and `DOUBLE_PRESS_WINDOW` in `crates/shortcut-macos/src/{processor,decision}.rs`; `"DoubleFn"` in `plugins/shortcut/src/global.rs`; `PERSONAL_DICTATION_SHORTCUT` in `settings/schema.ts`; the `DoubleFn` button and label in `settings/dictation-shortcut.tsx`; the hands-free override in `dictation/lifecycle.tsx`; the Fn + Escape consumption in `crates/shortcut-macos/src/listener.rs`; the settings description in `settings/dictation.tsx`.
 
 ### 8. Dictation types into any app, including terminals
 
@@ -104,13 +105,27 @@ The sync procedure itself lives in `AGENTS.md` ("Fork: upstream sync procedure")
 - **Verify:** no automated test (native accessibility). In the app: dictate into a Ghostty prompt and into a TextEdit document, and confirm the clipboard content is unchanged afterwards. Then finish a dictation in Ghostty with a single Fn press and immediately double-press Fn again: the first transcript must be pasted, not "v".
 - **Current anchors:** `pastePid`, `frontmostPasteTarget`, `paste`, `waitForModifiersReleased`, and `syntheticPasteMarker` in `crates/dictation-ui-macos/swift-lib/src/TextInsertion.swift`; `SYNTHETIC_PASTE_MARKER` in `crates/shortcut-macos/src/tap.rs` (the two values must match).
 
+### 9. Microphone fallback with the lid closed
+
+- **Intent:** dictation and recording work when the MacBook runs closed on an external display, by using whatever real microphone is around (AirPods, the iPhone, a USB mic) instead of the laptop mic.
+- **Behavior:**
+  - With the lid closed, Apple disconnects the built-in microphone in hardware, but macOS still lists it as a live input. When the requested or default input is that built-in mic, or the requested mic is gone, capture opens the best real alternative instead: a Bluetooth headset (AirPods) first, then the iPhone microphone (Continuity), then USB or other wired hardware.
+  - Virtual inputs (for example Microsoft Teams Audio) are never picked, because they are silent unless their app runs.
+  - A chosen Bluetooth headset still goes through upstream's headset-profile handoff, so it records voice, not silence.
+  - With the lid open, or when an external mic is requested and present, nothing changes.
+  - Applies to meeting recording as well as dictation, since both open the microphone the same way.
+- **Upstream first:** this patch covers a gap in upstream. If upstream starts handling the lid-closed built-in mic itself (for example by skipping or ranking it down), prefer the upstream implementation: delete `crates/audio-device/src/lid_closed.rs` and its one-line call, confirm the Verify steps still pass on upstream's code, and update this entry.
+- **Verify:** `cargo test --locked -p audio-device lid_closed`. In the app, with the lid closed on an external display: take the AirPods out of the Mac's reach (or connect them to the iPhone) with the iPhone nearby and locked, dictate, and confirm text arrives; then with AirPods connected to the Mac, dictate again and confirm it uses them.
+- **Current anchors:** `lid_closed_input_override` and `pick_lid_closed_input` in `crates/audio-device/src/lid_closed.rs` (lid state from `ioreg AppleClamshellState`); its call at the top of `new_locked` in `crates/audio-actual/src/mic.rs`.
+- **Not yet built:** connecting paired AirPods that are not connected (IOBluetooth `openConnection`, needs `NSBluetoothAlwaysUsageDescription`). Planned as the next step.
+
 ### Known limitation: dictionary with Soniqo
 
-Dictation and meeting transcription send the dictionary to the speech engine as keywords, but Soniqo Parakeet takes no keyword input (`crates/transcribe-soniqo`), so the terms have no effect with that engine. Summaries still receive them as preferred names. Decided on 2026-09-30 to leave this as is; revisit if Soniqo gains context biasing or if dictation moves to a keyword-capable engine (ElevenLabs `keyterms`, OpenAI `prompt`).
+Dictation and meeting transcription send the dictionary to the speech engine as keywords, but Soniqo Parakeet takes no keyword input (`crates/transcribe-soniqo`), so the terms have no effect with that engine. Summaries still receive them as preferred names. Decided on 2026-09-30 to leave this as is; revisit if Soniqo gains context biasing or if dictation moves to a keyword-capable engine (ElevenLabs `keyterms`, OpenAI `prompt`). A port of Handy's custom-words correction was tried on 2026-10-01 and reverted.
 
 ## Summaries and transcripts
 
-### 9. Summaries are manual
+### 10. Summaries are manual
 
 - **Intent:** nothing is sent to a language model unless I ask for it.
 - **Behavior:**
@@ -119,7 +134,7 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 - **Verify:** `shared/personal.test.ts` (default resolves to `false`), `services/enhancer/index.test.ts` (auto-enhance skipped when disabled), `session/components/note-input/enhanced/empty-summary-cta.test.tsx`. In the app: record a short meeting, stop, and confirm the summary stays empty with the three buttons.
 - **Current anchors:** `PERSONAL_AUTO_SUMMARY_DEFAULT` as the default of `auto_enhance_after_transcript` in `settings/schema.ts`; `isAutoEnhanceAllowed` in `services/enhancer/index.ts`; `isAutoEnhanceEnabled` in `main/lifecycle.tsx`; `autoEnhanceEnabled` in `stt/capture-lifecycle.ts`; `EmptySummaryCta` in `session/components/note-input/enhanced/`.
 
-### 10. Clean transcript tab
+### 11. Clean transcript tab
 
 - **Intent:** read a meeting as clean prose. The raw transcript is written for machines (fragments, one word per line, interleaved speakers), and a summary loses detail.
 - **Behavior:**
@@ -131,7 +146,7 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 - **Verify:** `services/enhancer/clean-transcript.test.ts` (prompt building, regrouping, tab order), `empty-summary-cta.test.tsx`. In the app: open a recorded meeting, confirm the tab order Summary, Memos, Clean transcript, Transcript, then generate and confirm paragraphs per speaker turn, not one line per sentence. Prompt quality is measured with the offline benchmark in `.agent/bench/clean-transcript/` (local, not committed).
 - **Current anchors:** `services/enhancer/clean-transcript.ts` (reserved template id `personal:clean-transcript`, prompts, regrouping, `placeCleanTranscriptTab`); `cleanTranscript` in `store/zustand/ai-task/task-configs/{index,enhance-transform,enhance-workflow,enhance-success}.ts`; `CleanTranscriptButton` in `session/components/note-input/enhanced/{clean-transcript-button,empty-summary-cta}.tsx`; `useEnsureCleanTranscriptNote` and the tab reorder in `session/index.tsx` and `session/components/note-input/header.tsx`; the `ORDER BY` in `session/queries/enhanced-notes.ts`; the icon and missing picker in `session/components/note-input/header-enhanced.tsx`.
 
-### 11. No floating chat bar
+### 12. No floating chat bar
 
 - **Intent:** a note is for reading and writing, not chatting.
 - **Behavior:** the floating "Ask anything" bar does not appear at the bottom of a session. The chat implementation stays intact.
@@ -140,7 +155,7 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 
 ## Language models
 
-### 12. Current ChatGPT models
+### 13. Current ChatGPT models
 
 - **Intent:** the ChatGPT subscription offers the newest model families as soon as OpenAI ships them.
 - **Behavior:** Settings > Intelligence > ChatGPT lists the current families (today GPT 6 Sol, Terra, and Luna). The Codex catalog hides models whose minimum client version is newer than the one we send, so the version we send tracks the current `@openai/codex` release and never falls below upstream's.
@@ -149,14 +164,14 @@ Dictation and meeting transcription send the dictionary to the speech engine as 
 
 ## Developer builds and appearance
 
-### 13. Quieter dev builds
+### 14. Quieter dev builds
 
 - **Intent:** a dev build used daily looks like a normal app.
 - **Behavior:** React render outlines are off by default (the toggle remains in the devtools bar), and the devtools stats bar is hidden by default.
 - **Verify:** `shared/personal.test.ts`. In the app: no outlines and no stats bar at launch.
 - **Current anchors:** `PERSONAL_HIDE_DEVTOOLS_BAR` in `devtools-bar/index.tsx`; `outlinesEnabled = false` in `devtools-bar/render-tracker.ts`.
 
-### 14. macOS layered icon
+### 15. macOS layered icon
 
 - **Intent:** the Dock icon follows the system appearance (Dark, Clear, Tinted).
 - **Behavior:** the in-app icon picker is hidden, the dev bundle ships its layered icon (`Assets.car`), and the default icon uses the system variants instead of a flat image pinned at launch.

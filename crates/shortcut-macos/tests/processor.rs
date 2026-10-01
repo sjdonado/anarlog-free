@@ -404,7 +404,7 @@ fn double_press() -> Options {
 }
 
 #[test]
-fn double_press_fn_starts_on_second_tap_and_stops_on_next() {
+fn double_press_fn_starts_and_stops_with_a_double_press() {
     Scenario::new(fn_only())
         .options(double_press())
         .add(step(0.0, None, &[Modifier::Fn]).matched(false))
@@ -415,12 +415,48 @@ fn double_press_fn_starts_on_second_tap_and_stops_on_next() {
                 .state(StateKind::DoubleTapLock),
         )
         .add(step(0.4, None, &[]).state(StateKind::DoubleTapLock))
+        .add(step(3.0, None, &[Modifier::Fn]).state(StateKind::DoubleTapLock))
+        .add(step(3.1, None, &[]).state(StateKind::DoubleTapLock))
         .add(
-            step(3.0, None, &[Modifier::Fn])
+            step(3.3, None, &[Modifier::Fn])
                 .out(Output::StopRecording)
                 .state(StateKind::Idle),
         )
-        .add(step(3.1, None, &[]).matched(false))
+        .add(step(3.4, None, &[]).matched(false))
+        .run();
+}
+
+#[test]
+fn double_press_fn_single_tap_while_recording_keeps_recording() {
+    Scenario::new(fn_only())
+        .options(double_press())
+        .add(step(0.0, None, &[Modifier::Fn]))
+        .add(step(0.1, None, &[]))
+        .add(step(0.3, None, &[Modifier::Fn]).out(Output::StartRecording))
+        .add(step(0.4, None, &[]))
+        .add(step(3.0, None, &[Modifier::Fn]))
+        .add(step(3.1, None, &[]))
+        .add(step(5.0, None, &[Modifier::Fn]).state(StateKind::DoubleTapLock))
+        .add(step(5.1, None, &[]).state(StateKind::DoubleTapLock))
+        .run();
+}
+
+#[test]
+fn double_press_fn_plus_escape_cancels_without_stopping_first() {
+    Scenario::new(fn_only())
+        .options(double_press())
+        .add(step(0.0, None, &[Modifier::Fn]))
+        .add(step(0.1, None, &[]))
+        .add(step(0.3, None, &[Modifier::Fn]).out(Output::StartRecording))
+        .add(step(0.4, None, &[]))
+        .add(step(2.0, None, &[Modifier::Fn]).state(StateKind::DoubleTapLock))
+        .add(
+            step(2.1, Some(K_ESC), &[Modifier::Fn])
+                .out(Output::Cancel)
+                .state(StateKind::Idle),
+        )
+        .add(step(2.2, None, &[Modifier::Fn]))
+        .add(step(2.3, None, &[]).matched(false))
         .run();
 }
 
