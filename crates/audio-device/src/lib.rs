@@ -1,5 +1,6 @@
 mod device;
 mod error;
+mod lid_closed;
 
 #[cfg(target_os = "macos")]
 pub mod macos;
@@ -12,6 +13,7 @@ pub mod windows;
 
 pub use device::*;
 pub use error::*;
+pub use lid_closed::lid_closed_input_override;
 
 pub fn backend() -> impl AudioDeviceBackend {
     #[cfg(target_os = "macos")]

@@ -306,6 +306,9 @@ impl MicInput {
     }
 
     fn new_locked(device_name: Option<String>) -> Result<Self, crate::Error> {
+        // Personal fork: skip the lid-closed (silent) built-in mic; see FORK.md.
+        let device_name =
+            anlg_audio_device::lid_closed_input_override(device_name.as_deref()).or(device_name);
         let bluetooth = device_name
             .as_deref()
             .filter(|name| !name.is_empty())
