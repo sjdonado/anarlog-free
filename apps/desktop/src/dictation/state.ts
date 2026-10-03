@@ -13,6 +13,8 @@ export const useDictationStatus = create<{
   presentedOwner: string | null;
   microphone: string;
   amplitude: number;
+  // Personal fork: true once the microphone delivers real (non-zero) audio.
+  micReady: boolean;
   text: string;
   partial: string;
   previewEnabled: boolean;
@@ -31,6 +33,7 @@ export const useDictationStatus = create<{
   presentedOwner: null,
   microphone: "Default microphone",
   amplitude: 0,
+  micReady: false,
   text: "",
   partial: "",
   previewEnabled: false,

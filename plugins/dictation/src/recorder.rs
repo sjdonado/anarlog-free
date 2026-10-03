@@ -205,6 +205,7 @@ async fn record_to_file(
     let deadline = tokio::time::sleep(std::time::Duration::from_secs(MAX_RECORDING_SECONDS));
     tokio::pin!(deadline);
     let mut sample_count = 0_u64;
+    let mut ready_sent = false;
 
     loop {
         tokio::select! {
@@ -223,6 +224,10 @@ async fn record_to_file(
                 }
                 sample_count += samples.len() as u64;
                 if let Some(updates) = &updates {
+                    if !ready_sent && samples.iter().any(|sample| *sample != 0.0) {
+                        ready_sent = true;
+                        let _ = updates.send(RecordingUpdate::Ready);
+                    }
                     let rms = (samples.iter().map(|s| f64::from(*s).powi(2)).sum::<f64>() / samples.len().max(1) as f64).sqrt();
                     let _ = updates.send(RecordingUpdate::Amplitude { amplitude: speech_level(rms) });
                     if preview.as_ref().is_some_and(|preview| !preview.send(&samples)) {

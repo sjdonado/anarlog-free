@@ -274,12 +274,14 @@ describe("dictation access and lifecycle", () => {
       });
       channel.onmessage({ type: "previewUnavailable" });
       channel.onmessage({ type: "amplitude", amplitude: 0.5 });
+      channel.onmessage({ type: "ready" });
     });
     expect(useDictationStatus.getState()).toMatchObject({
       text: "",
       partial: "",
       previewUnavailable: false,
       amplitude: 0.5,
+      micReady: true,
     });
     await act(async () => {
       mocks.listener?.({ payload: { type: "released" } });

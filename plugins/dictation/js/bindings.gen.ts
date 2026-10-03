@@ -110,7 +110,7 @@ export type ListenParams = { model?: string | null; channels?: number; sample_ra
 export type Phase = "recording" | "processing"
 export type PreviewConfig = { provider: string; baseUrl: string; apiKey: string; params: ListenParams }
 export type RecordedAudio = { filePath: string; durationMs: number; transcript: string | null }
-export type RecordingUpdate = { type: "amplitude"; amplitude: number } | { type: "transcript"; text: string; partial: string } | { type: "previewUnavailable" }
+export type RecordingUpdate = { type: "amplitude"; amplitude: number } | { type: "transcript"; text: string; partial: string } | { type: "previewUnavailable" } | { type: "ready" }
 export type TAURI_CHANNEL<TSend> = null
 
 /** tauri-specta globals **/

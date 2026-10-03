@@ -5,6 +5,10 @@ struct DictationTranscript: View {
   let color: Color
 
   private var emptyText: String {
+    // Personal fork: wireless mics deliver silence while they warm up.
+    if dictation.phase == "connecting" || dictation.phase == "starting" {
+      return "Connecting microphone…"
+    }
     if dictation.previewUnavailable {
       return "Live preview is unavailable. Your text will appear when you finish."
     }

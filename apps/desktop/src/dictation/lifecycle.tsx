@@ -152,6 +152,7 @@ function ActiveDictation({
           text: "",
           partial: "",
           amplitude: 0,
+          micReady: false,
           microphone: microphone || "Default microphone",
           previewEnabled: livePreview,
           previewUnavailable: livePreview && !conn,
@@ -224,6 +225,8 @@ function ActiveDictation({
                 return;
               if (update.type === "amplitude")
                 useDictationStatus.setState({ amplitude: update.amplitude });
+              else if (update.type === "ready")
+                useDictationStatus.setState({ micReady: true });
               else if (!livePreview) return;
               else if (update.type === "transcript")
                 useDictationStatus.setState({
@@ -288,6 +291,7 @@ function ActiveDictation({
                   text: "",
                   partial: "",
                   amplitude: 0,
+                  micReady: false,
                 }
               : {}),
             ...(phase === "starting" &&

@@ -54,7 +54,12 @@ export function getDictationPanelState(): FloatingRouteState | null {
     transcriptBubbles: emptyBubbles,
     dictation: {
       sessionId: state.owner,
-      phase: state.phase,
+      // Personal fork: until the microphone delivers real audio the bar shows
+      // "connecting", so speech is not lost to a warming-up wireless mic.
+      phase:
+        state.phase === "recording" && !state.micReady
+          ? "connecting"
+          : state.phase,
       microphone: state.microphone,
       text: state.text,
       partial: state.partial,

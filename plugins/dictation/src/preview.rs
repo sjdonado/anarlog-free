@@ -20,6 +20,10 @@ pub enum RecordingUpdate {
     Amplitude { amplitude: f64 },
     Transcript { text: String, partial: String },
     PreviewUnavailable,
+    // Personal fork (FORK.md, "Microphone readiness cue"): the first non-zero
+    // sample arrived. Wireless mics deliver silence while they warm up (about
+    // 1.2 s for AirPods, 2-3.5 s for the iPhone), so speech before this is lost.
+    Ready,
 }
 
 pub struct Preview {

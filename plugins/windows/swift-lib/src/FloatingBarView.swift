@@ -261,7 +261,12 @@ struct FloatingBarView: View {
               height: FloatingBarLayout.waveformHeight
             )
         } else {
-          DancingBars(color: accentColor, levels: model.levels)
+          DancingBars(
+            // Personal fork: grey bars until the microphone delivers audio.
+            color: ["connecting", "starting"].contains(model.dictation?.phase ?? "")
+              ? Color.gray.opacity(0.6) : accentColor,
+            levels: model.levels
+          )
             .frame(
               width: FloatingBarLayout.waveformWidth,
               height: FloatingBarLayout.waveformHeight
