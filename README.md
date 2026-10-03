@@ -60,13 +60,7 @@ To pull upstream updates: merge or rebase upstream `main` into your personal bra
 
 ## Pulling upstream updates
 
-This fork tracks upstream `main` (`https://github.com/fastrepl/anarlog`). A sync is not finished until the app is rebuilt and the custom patches are proven intact — never stop at "contests resolved":
-
-1. `git fetch upstream && git merge upstream/main` on a sync branch. Resolve `README.md` with `--ours`, take upstream's i18n catalogs and regenerate them, and keep both sides of small conflicts (for example upstream's new settings section plus our gated one).
-2. For every feature in `FORK.md`, find where it lives in the new code. Upstream refactors move code, so the goal is the feature's behavior, not the old lines: re-apply the patch where the behavior now lives and update the anchors in `FORK.md`.
-3. Run the behavioral checks: `pnpm -F @anlg/ui build`, `pnpm -F @anlg/desktop typecheck`, `pnpm -F @anlg/desktop test`, `cargo test --locked -p owhisper-client`, then `lingui extract` + `compile` and confirm the catalogs settle.
-4. Rebuild `Anarlog Dev.app`, reinstall it to `/Applications` (that is what Raycast launches), and run each feature's end-to-end check from `FORK.md`.
-5. Merge the sync branch to `main` only after all of the above is green.
+This fork tracks upstream `main` (`https://github.com/fastrepl/anarlog`). The full procedure is the project skill `fork-upstream-sync` (`.agents/skills/fork-upstream-sync/SKILL.md`), which agents load when asked to sync with upstream. In short: merge on a sync branch, resolve every conflict by the feature's Behavior in `FORK.md`, re-apply patches where upstream moved the code, run the tests and the fork guards, rebuild and reinstall the app, and run each feature's end-to-end check. A sync is complete only when every feature in `FORK.md` works on the new code.
 
 ### Local build workarounds on this machine
 

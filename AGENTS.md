@@ -6,13 +6,7 @@
 
 `FORK.md` is the contract for this fork: every feature it adds, described by intent, observable behavior, verification, and current code anchors. A sync keeps the features working, not the patch code as it was. Upstream fixes and refactors will move or rewrite the code our patches touch; when they do, re-implement each feature on the new code and update its anchors in `FORK.md`.
 
-Every upstream sync MUST end with a rebuild and a feature sweep. Never merge upstream and stop at "conflicts resolved". Do all of it in this order:
-
-1. `git fetch upstream` and merge `upstream/main` into a sync branch. Keep `README.md` and `FORK.md` ours (`--ours`), and regenerate i18n catalogs rather than hand-merging them. When a conflict or an upstream refactor touches a fork feature, resolve it by the feature's Behavior in `FORK.md`, not by restoring the old lines.
-2. **Anchor sweep**: for each feature in `FORK.md`, find its current anchors. A missing anchor is not a pass or a fail by itself: it means upstream moved the code. Locate where the behavior now lives, re-apply the smallest patch there, and update the anchors. If upstream now ships the behavior itself, drop our patch and record that in `FORK.md`. If upstream removed the premise of a feature, stop and ask the owner.
-3. **Behavioral sweep**: `pnpm -F @anlg/ui build`, `pnpm -F @anlg/desktop typecheck`, `pnpm -F @anlg/desktop test` (the guards in `shared/personal.test.ts` and each feature's tests listed in `FORK.md`), `cargo test --locked -p owhisper-client -p shortcut-macos -p tauri-plugin-shortcut -p audio-device`, and i18n extract+compile until the catalogs are stable. Compare `CHATGPT_CODEX_CLIENT_VERSION` with `npm view @openai/codex version`.
-4. **App sweep**: rebuild `Anarlog Dev.app` with `bash .agent/build-desktop-local.sh`, reinstall it to `/Applications` (that is what Raycast launches), launch it, and run each feature's end-to-end check from `FORK.md`. Features without an automated test (for example dictation into a terminal) are checked by hand or reported as unchecked.
-5. Report the sync as complete only when all four sweeps are green, listing any feature whose end-to-end check was not run. A skipped sweep is an incomplete sync, never a pass.
+Every upstream sync follows the `fork-upstream-sync` skill (`.agents/skills/fork-upstream-sync/SKILL.md`): merge on a sync branch, resolve conflicts by each feature's Behavior, then the anchor, behavioral, app, and end-to-end sweeps. Never merge upstream and stop at "conflicts resolved". Report the sync as complete only when every sweep is green, listing any feature whose end-to-end check was not run.
 
 When a fork feature is added, changed, or removed, update `FORK.md` in the same change, including its Verify line and at least one automated guard where the behavior allows it.
 
