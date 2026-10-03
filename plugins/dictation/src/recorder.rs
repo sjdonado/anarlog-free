@@ -70,6 +70,12 @@ impl Recorder {
             return Err(Error::AlreadyRecording);
         }
 
+        // Personal fork (FORK.md, "Microphone fallback with the lid closed"):
+        // like meeting recording, keep a silent stream on the default output
+        // while dictating. macOS hands AirPods to the device that plays to
+        // them; opening only their microphone never moves them from an idle
+        // iPhone. Dropping the sender stops the stream.
+        let silence = audio.play_silence();
         let stream = audio
             .open_mic_capture(microphone_device, SAMPLE_RATE, CHUNK_SIZE)
             .map_err(|error| Error::Capture(error.to_string()))?;
@@ -88,6 +94,7 @@ impl Recorder {
         let finalize = Arc::new(AtomicBool::new(false));
         let task_finalize = finalize.clone();
         let task = tauri::async_runtime::spawn(async move {
+            let _silence = silence;
             let preview = preview
                 .zip(updates.clone())
                 .map(|(config, updates)| Preview::start(config, updates));
